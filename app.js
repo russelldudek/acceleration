@@ -79,15 +79,6 @@ const strengthLabels = {
   strong: 'Strong'
 };
 
-function prepareOrigamiSurface() {
-  const core = document.querySelector('.origami-core');
-  if (core) core.dataset.surface = 'paper';
-
-  document.querySelectorAll('.origami-face__index').forEach((label, index) => {
-    label.textContent = String(index + 1).padStart(2, '0');
-  });
-}
-
 function updateEngineEvidence(id, state, text) {
   const face = document.querySelector(`[data-engine-evidence="${id}"]`);
   if (!face) return;
@@ -95,11 +86,9 @@ function updateEngineEvidence(id, state, text) {
   face.dataset.state = state;
   const evidenceText = face.querySelector('.engine-evidence-text');
   const strengthLabel = face.querySelector('.strength-label');
-  const strengthRail = face.querySelector('.strength-rail');
 
   if (evidenceText) evidenceText.textContent = text;
   if (strengthLabel) strengthLabel.textContent = strengthLabels[state] || state;
-  if (strengthRail) strengthRail.setAttribute('aria-label', `${strengthLabels[state] || state} evidence`);
 }
 
 function applyScenario(key) {
@@ -110,10 +99,10 @@ function applyScenario(key) {
     button.setAttribute('aria-selected', String(button.dataset.scenario === key));
   });
 
-  const engine = document.querySelector('.origami-engine');
-  if (engine) engine.dataset.result = data.result;
+  const engine = document.querySelector('.three-fold-stage');
+  if (engine) engine.dataset.state = data.result;
 
-  const workflowName = document.querySelector('.origami-workflow-name');
+  const workflowName = document.querySelector('.three-fold-workflow');
   if (workflowName) workflowName.textContent = data.label;
 
   document.querySelectorAll('.disposition-step').forEach(step => {
@@ -141,6 +130,17 @@ function applyScenario(key) {
 
   const live = document.querySelector('#lab-live');
   if (live) live.textContent = `${data.label}: disposition ${data.decision}. ${data.note}`;
+
+  const foldState = {
+    key,
+    label: data.label,
+    result: data.result,
+    decision: data.decision,
+    heroEvidence: data.heroEvidence,
+    evidence: data.evidence
+  };
+  window.__foldScenarioState = foldState;
+  window.dispatchEvent(new CustomEvent('foldscenariochange', { detail: foldState }));
 }
 
 document.querySelectorAll('.scenario').forEach(button => {
@@ -167,5 +167,4 @@ document.addEventListener('keydown', event => {
   }
 });
 
-prepareOrigamiSurface();
 applyScenario('reporting');
