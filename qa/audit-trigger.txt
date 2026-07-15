@@ -3,3 +3,4 @@ Retry with preserved render evidence.
 Retry with corrected browser module resolution.
 Retry after semantic document-heading correction.
 Retry after official logo rendering repair.
+Final audit after workflow cleanup.
