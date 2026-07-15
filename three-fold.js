@@ -42,7 +42,6 @@ function activateFallback() {
   stage.dataset.phase = 'settled';
   canvas?.setAttribute('hidden', '');
   fallback?.setAttribute('aria-hidden', 'false');
-  revealInterface(true);
   diagnostics.ready = true;
   diagnostics.renderer = 'fallback';
   diagnostics.phase = 'settled';
@@ -203,6 +202,7 @@ function initializeScene() {
   let animation = null;
   let rafId = 0;
   let idleStart = performance.now();
+  let lastTime = performance.now();
   let observer;
 
   function targetFor(panel, nextState) {
@@ -450,6 +450,7 @@ function initializeScene() {
 
   function tick(time) {
     rafId = 0;
+    lastTime = time;
     const active = updateChoreography(time);
 
     if (!animation && !reducedMotionQuery.matches) {
@@ -516,7 +517,7 @@ function initializeScene() {
   stage.addEventListener('keydown', event => {
     if ((event.key === 'Enter' || event.key === ' ') && event.target === stage) {
       event.preventDefault();
-      startChoreography(state, { intro: true });
+      startChoreography(state, { intro : true });
     }
   });
   stage.tabIndex = 0;
