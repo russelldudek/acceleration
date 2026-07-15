@@ -60,6 +60,8 @@ jobs:
           npx playwright install --with-deps chromium >/dev/null
 
       - name: Audit live rendered routes
+        id: render
+        continue-on-error: true
         shell: bash
         run: |
           mkdir -p qa-live
@@ -82,11 +84,22 @@ jobs:
             const reduced=await browser.newContext({viewport:{width:1280,height:800},reducedMotion:'reduce'});const rp=await reduced.newPage();await rp.goto(base+'index.html?reduced='+Date.now(),{waitUntil:'networkidle'});const running=await rp.evaluate(()=>document.getAnimations().filter(a=>a.playState==='running').length);if(running)throw new Error(`reduced motion has ${running} running animations`);await reduced.close();await browser.close();
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
-          node /tmp/audit.cjs
+          set +e
+          node /tmp/audit.cjs 2>&1 | tee qa-live/audit-output.txt
+          code=${PIPESTATUS[0]}
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Upload rendered evidence
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: live-campaign-render-evidence
           path: qa-live
           retention-days: 30
+
+      - name: Enforce rendered audit result
+        if: always()
+        shell: bash
+        run: |
+          test "${{ steps.render.outputs.exit_code }}" = "0"
