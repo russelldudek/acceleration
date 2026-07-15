@@ -1,0 +1,32 @@
+name: Apply logo rendering fallback
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: ${{ !contains(github.event.head_commit.message, '[logo fallback]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Append browser-safe logo rules
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -Fq 'BROWSER_SAFE_AP_LOGO' styles.css; then exit 0; fi
+          cat >> styles.css <<'CSS'
+
+          /* BROWSER_SAFE_AP_LOGO: direct data-image rendering avoids nested SVG resource failures. */
+          .logo-card img,.doc-company img{display:none}
+          .logo-card::before{content:"";display:block;width:100%;aspect-ratio:250/260;background-image:var(--ap-logo-image);background-position:center;background-repeat:no-repeat;background-size:contain}
+          .doc-company::before{content:"";display:block;flex:0 0 .42in;width:.42in;height:.42in;background-image:var(--ap-logo-image);background-position:center;background-repeat:no-repeat;background-size:contain}
+          CSS
+          git config user.name "candidate-campaign-maintenance"
+          git config user.email "actions@users.noreply.github.com"
+          git add styles.css
+          git commit -m "Repair official logo rendering [logo fallback]"
+          git push
