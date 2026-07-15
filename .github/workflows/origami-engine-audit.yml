@@ -35,7 +35,12 @@ jobs:
         env:
           AUDIT_URL: http://127.0.0.1:4173
           AUDIT_OUTPUT: audit-evidence
-        run: node tests/origami-engine-audit.mjs
+        run: |
+          mkdir -p audit-evidence
+          set +e
+          node tests/origami-engine-audit.mjs 2>&1 | tee audit-evidence/audit.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
       - name: Upload visual evidence
         if: always()
         uses: actions/upload-artifact@v4
