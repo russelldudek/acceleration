@@ -4,6 +4,12 @@ const scenarios = {
     result: 'assist',
     decision: 'Assist',
     note: 'Automate preparation and first-pass synthesis; preserve account-team interpretation and client-specific judgment.',
+    heroEvidence: {
+      outcome: 'More capacity for strategic analysis',
+      trust: 'Structured, reviewable output',
+      reuse: 'Recurring, configurable workflow',
+      proof: 'Quality, rework, adoption, time saved'
+    },
     evidence: {
       outcome: ['strong', 'Clear cycle-time and strategic-capacity benefit'],
       trust: ['strong', 'Structured data and reviewable output'],
@@ -16,6 +22,12 @@ const scenarios = {
     result: 'productize',
     decision: 'Productize',
     note: 'The workflow has reusable data, recurring demand, and a natural place inside APVision - with human curation retained for fit and relationship context.',
+    heroEvidence: {
+      outcome: 'Broader qualified partner discovery',
+      trust: 'Permissioned warehouse data',
+      reuse: 'Shared across programs and markets',
+      proof: 'Activation and adoption are observable'
+    },
     evidence: {
       outcome: ['strong', 'Faster, broader partner opportunity discovery'],
       trust: ['strong', 'Private warehouse and permissioned use'],
@@ -28,6 +40,12 @@ const scenarios = {
     result: 'agentize',
     decision: 'Agentize',
     note: 'Let agents watch defined signals and assemble evidence; require a named human to accept, reject, or escalate the recommendation.',
+    heroEvidence: {
+      outcome: 'Earlier attention on material signals',
+      trust: 'Thresholds and explanations need tuning',
+      reuse: 'Common monitoring pattern',
+      proof: 'Precision and action rate are measurable'
+    },
     evidence: {
       outcome: ['strong', 'Earlier attention on material opportunities and risks'],
       trust: ['develop', 'Thresholds and explanation standards need calibration'],
@@ -40,6 +58,12 @@ const scenarios = {
     result: 'human',
     decision: 'Human-led',
     note: 'Use AI for preparation and retrieval, but keep brand nuance, relationship judgment, and final recommendation visibly human-owned.',
+    heroEvidence: {
+      outcome: 'Faster preparation; contextual quality risk',
+      trust: 'Human review remains essential',
+      reuse: 'High variation by brand and partner',
+      proof: 'Pilot against an explicit quality rubric'
+    },
     evidence: {
       outcome: ['develop', 'Potential speed gain, but quality is highly contextual'],
       trust: ['develop', 'Brand and relationship risk requires close review'],
@@ -54,6 +78,15 @@ const strengthLabels = {
   develop: 'Developing',
   strong: 'Strong'
 };
+
+function prepareOrigamiSurface() {
+  const core = document.querySelector('.origami-core');
+  if (core) core.dataset.surface = 'paper';
+
+  document.querySelectorAll('.origami-face__index').forEach((label, index) => {
+    label.textContent = String(index + 1).padStart(2, '0');
+  });
+}
 
 function updateEngineEvidence(id, state, text) {
   const face = document.querySelector(`[data-engine-evidence="${id}"]`);
@@ -97,7 +130,7 @@ function applyScenario(key) {
   if (title) title.textContent = data.label;
 
   Object.entries(data.evidence).forEach(([id, [state, text]]) => {
-    updateEngineEvidence(id, state, text);
+    updateEngineEvidence(id, state, data.heroEvidence[id] || text);
 
     const detail = document.querySelector(`[data-evidence="${id}"]`);
     if (!detail) return;
@@ -134,4 +167,5 @@ document.addEventListener('keydown', event => {
   }
 });
 
+prepareOrigamiSurface();
 applyScenario('reporting');

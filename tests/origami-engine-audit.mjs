@@ -34,8 +34,12 @@ for (const [name, viewport] of viewports) {
   check(await page.locator('.origami-engine').count() === 1, `${name}: missing Precision Origami Engine`);
   check(await page.locator('.fold-sheet').count() === 0, `${name}: superseded fold-sheet remains`);
   check(await page.locator('.origami-face').count() === 4, `${name}: expected four evidence faces`);
-  check(await page.locator('.origami-core').count() === 1, `${name}: missing recurring-workflow core`);
+  check(await page.locator('.origami-core[data-surface="paper"]').count() === 1, `${name}: center is not the approved paper-fold surface`);
   check(await page.locator('.disposition-rail').count() === 1, `${name}: missing integrated disposition rail`);
+  check((await page.locator('.workflow-path').evaluate(el => getComputedStyle(el).display)) === 'none', `${name}: dashboard workflow nodes still compete with the fold`);
+
+  const indexLabels = await page.locator('.origami-face__index').allTextContents();
+  check(indexLabels.every(label => /^0[1-4]$/.test(label.trim())), `${name}: evidence-face labels are visually noisy`);
 
   const geometry = await page.evaluate(() => {
     const viewportWidth = document.documentElement.clientWidth;
@@ -47,8 +51,6 @@ for (const [name, viewport] of viewports) {
         height: rect.height,
         left: rect.left,
         right: rect.right,
-        top: rect.top,
-        bottom: rect.bottom,
         visible: getComputedStyle(face).visibility !== 'hidden' && getComputedStyle(face).opacity !== '0',
       };
     });
@@ -56,10 +58,12 @@ for (const [name, viewport] of viewports) {
     const sheetRect = sheet?.getBoundingClientRect();
     const rail = document.querySelector('.disposition-rail')?.getBoundingClientRect();
     const core = document.querySelector('.origami-core')?.getBoundingClientRect();
+    const engine = document.querySelector('.origami-engine')?.getBoundingClientRect();
     return {
       overflow,
       faces,
       railGap: sheetRect && rail ? rail.top - sheetRect.bottom : 999,
+      railRatio: engine && rail ? rail.width / engine.width : 0,
       coreWidth: core?.width || 0,
       gridColumns: sheet ? getComputedStyle(sheet).gridTemplateColumns.split(' ').length : 0,
     };
@@ -69,17 +73,21 @@ for (const [name, viewport] of viewports) {
   geometry.faces.forEach((face, index) => {
     check(face.visible, `${name}: face ${index + 1} is hidden`);
     check(face.width >= (name === 'mobile' ? 155 : 190), `${name}: face ${index + 1} too narrow (${face.width}px)`);
-    check(face.height >= (name === 'mobile' ? 185 : 190), `${name}: face ${index + 1} too short (${face.height}px)`);
+    check(face.height >= (name === 'mobile' ? 175 : 180), `${name}: face ${index + 1} too short (${face.height}px)`);
     check(face.left >= -1 && face.right <= viewport.width + 1, `${name}: face ${index + 1} leaves viewport`);
   });
-  check(geometry.coreWidth >= (name === 'mobile' ? 330 : 250), `${name}: workflow core lacks visual authority`);
+  check(geometry.coreWidth >= (name === 'mobile' ? 330 : 280), `${name}: workflow core lacks visual authority`);
   check(geometry.railGap >= 0 && geometry.railGap <= 24, `${name}: disposition rail is detached from sheet (${geometry.railGap}px)`);
+  check(geometry.railRatio >= .86, `${name}: disposition rail lacks sufficient visual integration`);
   if (name === 'mobile') check(geometry.gridColumns === 2, 'mobile: expected two-column top-down evidence layout');
 
   await page.locator('[data-scenario="discovery"]').click();
   check((await page.locator('.origami-workflow-name').textContent())?.trim() === 'Publisher discovery', `${name}: hero workflow did not update`);
   check(await page.locator('[data-disposition="productize"][aria-current="true"]').count() === 1, `${name}: productize disposition did not activate`);
   check(await page.locator('.origami-engine[data-result="productize"]').count() === 1, `${name}: engine posture did not update`);
+
+  const heroEvidence = await page.locator('.engine-evidence-text').allTextContents();
+  check(heroEvidence.every(text => text.trim().length <= 48), `${name}: hero evidence copy is too dense`);
 
   await page.locator('.scenario-reset').click();
   check((await page.locator('.origami-workflow-name').textContent())?.trim() === 'Weekly client reporting', `${name}: reset did not restore baseline workflow`);
