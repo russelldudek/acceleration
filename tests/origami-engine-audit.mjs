@@ -39,23 +39,29 @@ for (const [name, viewport] of viewports) {
 
   const response = await page.goto(`${baseUrl}/index.html`, { waitUntil: 'networkidle' });
   check(response?.ok(), `${name}: index did not return HTTP success`);
-  check(await page.locator('.three-fold-stage').count() === 1, `${name}: missing Three.js fold stage`);
-  check(await page.locator('canvas.three-fold-canvas').count() === 1, `${name}: missing WebGL canvas`);
+
+  const hasStage = await page.locator('.three-fold-stage').count() === 1;
+  const hasCanvas = await page.locator('canvas.three-fold-canvas').count() === 1;
+  check(hasStage, `${name}: missing Three.js fold stage`);
+  check(hasCanvas, `${name}: missing WebGL canvas`);
   check(await page.locator('.three-fold-fallback').count() === 1, `${name}: missing semantic fallback`);
   check(await page.locator('.three-fold-label').count() === 4, `${name}: expected four semantic evidence labels`);
   check(await page.locator('.fold-sheet').count() === 0, `${name}: superseded fold-sheet remains`);
   check(await page.locator('.origami-sheet').count() === 0, `${name}: CSS paper-grid implementation remains`);
   check(await page.locator('.three-fold-disposition').count() === 1, `${name}: missing integrated disposition base`);
 
-  let diagnosticsReady = true;
-  try {
-    await page.waitForFunction(() => window.__foldEngineDiagnostics?.ready === true, null, { timeout: 5000 });
-  } catch {
-    diagnosticsReady = false;
+  let diagnosticsReady = false;
+  if (hasStage && hasCanvas) {
+    try {
+      await page.waitForFunction(() => window.__foldEngineDiagnostics?.ready === true, null, { timeout: 5000 });
+      diagnosticsReady = true;
+    } catch {
+      diagnosticsReady = false;
+    }
   }
   check(diagnosticsReady, `${name}: Three.js diagnostics never became ready`);
 
-  const baseline = await readDiagnostics(page);
+  const baseline = diagnosticsReady ? await readDiagnostics(page) : null;
   check(baseline?.renderer === 'three', `${name}: renderer is not Three.js`);
   check(baseline?.meshCount === 4, `${name}: expected four hinged meshes`);
   check(baseline?.state === 'assist', `${name}: baseline state is not Assist`);
@@ -81,9 +87,9 @@ for (const [name, viewport] of viewports) {
     });
     return {
       overflow: document.documentElement.scrollWidth - viewportWidth,
-      stage,
-      canvas,
-      disposition,
+      stage: stage ? { left: stage.left, right: stage.right, top: stage.top, bottom: stage.bottom, width: stage.width, height: stage.height } : null,
+      canvas: canvas ? { left: canvas.left, right: canvas.right, top: canvas.top, bottom: canvas.bottom, width: canvas.width, height: canvas.height } : null,
+      disposition: disposition ? { left: disposition.left, right: disposition.right, top: disposition.top, bottom: disposition.bottom, width: disposition.width, height: disposition.height } : null,
       labels,
     };
   });
@@ -98,26 +104,37 @@ for (const [name, viewport] of viewports) {
     check(label.left >= -1 && label.right <= viewport.width + 1, `${name}: evidence label ${index + 1} leaves viewport`);
   });
 
-  await page.locator('[data-scenario="discovery"]').click();
-  await page.waitForFunction(() => window.__foldEngineDiagnostics?.state === 'productize');
-  if (!baseline?.reducedMotion) {
-    await page.waitForFunction(() => window.__foldEngineDiagnostics?.settled === true, null, { timeout: 5000 });
+  if (diagnosticsReady) {
+    await page.locator('[data-scenario="discovery"]').click();
+    try {
+      await page.waitForFunction(() => window.__foldEngineDiagnostics?.state === 'productize', null, { timeout: 5000 });
+      if (!baseline?.reducedMotion) {
+        await page.waitForFunction(() => window.__foldEngineDiagnostics?.settled === true, null, { timeout: 5000 });
+      }
+    } catch {
+      check(false, `${name}: Productize geometry did not settle`);
+    }
+
+    const productize = await readDiagnostics(page);
+    check((await page.locator('.three-fold-workflow').textContent())?.trim() === 'Publisher discovery', `${name}: workflow label did not update`);
+    check(await page.locator('[data-disposition="productize"][aria-current="true"]').count() === 1, `${name}: Productize disposition did not activate`);
+    check(productize?.state === 'productize', `${name}: 3D engine did not enter Productize`);
+    check(productize?.rotations?.length === 4, `${name}: Productize rotations missing`);
+
+    const rotationDelta = baseline?.rotations && productize?.rotations
+      ? baseline.rotations.reduce((sum, value, index) => sum + Math.abs(value - productize.rotations[index]), 0)
+      : 0;
+    check(rotationDelta > 0.35, `${name}: scenario changed text but not meaningful fold geometry (${rotationDelta})`);
+
+    await page.locator('.scenario-reset').click();
+    try {
+      await page.waitForFunction(() => window.__foldEngineDiagnostics?.state === 'assist', null, { timeout: 5000 });
+    } catch {
+      check(false, `${name}: reset geometry did not return to Assist`);
+    }
+    check((await page.locator('.three-fold-workflow').textContent())?.trim() === 'Weekly client reporting', `${name}: reset did not restore baseline workflow`);
+    check(await page.locator('[data-disposition="assist"][aria-current="true"]').count() === 1, `${name}: reset did not restore Assist`);
   }
-  const productize = await readDiagnostics(page);
-  check((await page.locator('.three-fold-workflow').textContent())?.trim() === 'Publisher discovery', `${name}: workflow label did not update`);
-  check(await page.locator('[data-disposition="productize"][aria-current="true"]').count() === 1, `${name}: Productize disposition did not activate`);
-  check(productize?.state === 'productize', `${name}: 3D engine did not enter Productize`);
-  check(productize?.rotations?.length === 4, `${name}: Productize rotations missing`);
-
-  const rotationDelta = baseline?.rotations && productize?.rotations
-    ? baseline.rotations.reduce((sum, value, index) => sum + Math.abs(value - productize.rotations[index]), 0)
-    : 0;
-  check(rotationDelta > 0.35, `${name}: scenario changed text but not meaningful fold geometry (${rotationDelta})`);
-
-  await page.locator('.scenario-reset').click();
-  await page.waitForFunction(() => window.__foldEngineDiagnostics?.state === 'assist');
-  check((await page.locator('.three-fold-workflow').textContent())?.trim() === 'Weekly client reporting', `${name}: reset did not restore baseline workflow`);
-  check(await page.locator('[data-disposition="assist"][aria-current="true"]').count() === 1, `${name}: reset did not restore Assist`);
 
   await page.locator('[data-scenario="reporting"]').focus();
   await page.keyboard.press('ArrowRight');
@@ -126,7 +143,7 @@ for (const [name, viewport] of viewports) {
   check(consoleErrors.length === 0, `${name}: console errors: ${consoleErrors.join(' | ')}`);
   check(failedRequests.length === 0, `${name}: failed requests: ${failedRequests.join(' | ')}`);
 
-  await page.locator('.three-fold-stage').screenshot({ path: `${outputDir}/${name}-three-fold-hero.png` });
+  if (hasStage) await page.locator('.three-fold-stage').screenshot({ path: `${outputDir}/${name}-three-fold-hero.png` });
   await page.screenshot({ path: `${outputDir}/${name}-three-fold-page.png`, fullPage: true });
   await context.close();
 }
@@ -134,20 +151,29 @@ for (const [name, viewport] of viewports) {
 const reducedContext = await browser.newContext({ viewport: { width: 1280, height: 900 }, reducedMotion: 'reduce' });
 const reducedPage = await reducedContext.newPage();
 await reducedPage.goto(`${baseUrl}/index.html`, { waitUntil: 'networkidle' });
-let reducedReady = true;
-try {
-  await reducedPage.waitForFunction(() => window.__foldEngineDiagnostics?.ready === true, null, { timeout: 5000 });
-} catch {
-  reducedReady = false;
+let reducedReady = false;
+if (await reducedPage.locator('.three-fold-stage').count() === 1) {
+  try {
+    await reducedPage.waitForFunction(() => window.__foldEngineDiagnostics?.ready === true, null, { timeout: 5000 });
+    reducedReady = true;
+  } catch {
+    reducedReady = false;
+  }
 }
 check(reducedReady, 'reduced motion: Three.js engine did not initialize');
-await reducedPage.locator('[data-scenario="discovery"]').click();
-await reducedPage.waitForFunction(() => window.__foldEngineDiagnostics?.state === 'productize');
-const reduced = await readDiagnostics(reducedPage);
-check(reduced?.reducedMotion === true, 'reduced motion: preference was not detected');
-check(reduced?.settled === true, 'reduced motion: geometry did not resolve immediately');
-check(reduced?.continuousAnimation === false, 'reduced motion: continuous animation remains active');
-await reducedPage.locator('.three-fold-stage').screenshot({ path: `${outputDir}/reduced-motion-three-fold-hero.png` });
+if (reducedReady) {
+  await reducedPage.locator('[data-scenario="discovery"]').click();
+  try {
+    await reducedPage.waitForFunction(() => window.__foldEngineDiagnostics?.state === 'productize', null, { timeout: 5000 });
+  } catch {
+    check(false, 'reduced motion: Productize state did not resolve');
+  }
+  const reduced = await readDiagnostics(reducedPage);
+  check(reduced?.reducedMotion === true, 'reduced motion: preference was not detected');
+  check(reduced?.settled === true, 'reduced motion: geometry did not resolve immediately');
+  check(reduced?.continuousAnimation === false, 'reduced motion: continuous animation remains active');
+  await reducedPage.locator('.three-fold-stage').screenshot({ path: `${outputDir}/reduced-motion-three-fold-hero.png` });
+}
 await reducedContext.close();
 
 const fallbackContext = await browser.newContext({ viewport: { width: 820, height: 900 } });
@@ -157,10 +183,11 @@ await fallbackContext.addInitScript(() => {
 });
 const fallbackPage = await fallbackContext.newPage();
 await fallbackPage.goto(`${baseUrl}/index.html?forceFallback=1`, { waitUntil: 'networkidle' });
-check(await fallbackPage.locator('.three-fold-stage[data-fallback="true"]').count() === 1, 'fallback: stage did not expose fallback state');
+const fallbackStage = await fallbackPage.locator('.three-fold-stage').count() === 1;
+check(fallbackStage && await fallbackPage.locator('.three-fold-stage[data-fallback="true"]').count() === 1, 'fallback: stage did not expose fallback state');
 check(await fallbackPage.locator('.three-fold-fallback[aria-hidden="false"]').count() === 1, 'fallback: semantic fallback is not visible');
 check(await fallbackPage.locator('.three-fold-label').count() === 4, 'fallback: evidence labels are missing');
-await fallbackPage.locator('.three-fold-stage').screenshot({ path: `${outputDir}/fallback-three-fold-hero.png` });
+if (fallbackStage) await fallbackPage.locator('.three-fold-stage').screenshot({ path: `${outputDir}/fallback-three-fold-hero.png` });
 await fallbackContext.close();
 
 await browser.close();
