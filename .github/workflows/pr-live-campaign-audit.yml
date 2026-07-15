@@ -85,7 +85,7 @@ jobs:
           })().catch(e=>{console.error(e);process.exit(1)});
           JS
           set +e
-          node /tmp/audit.cjs 2>&1 | tee qa-live/audit-output.txt
+          NODE_PATH="$PWD/node_modules" node /tmp/audit.cjs 2>&1 | tee qa-live/audit-output.txt
           code=${PIPESTATUS[0]}
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
