@@ -1,0 +1,56 @@
+name: Verify published unfolding Fold
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Wait for exact unfolding files
+        run: |
+          set -euo pipefail
+          live='https://russelldudek.github.io/acceleration'
+          files=(index.html origami-engine.css app.js three-fold.js three-fold/engine.js three-fold/geometry.js assets/vendor/three/three.module.min.js)
+          for attempt in {1..90}; do
+            ok=1
+            for file in "${files[@]}"; do
+              mkdir -p "/tmp/live/$(dirname "$file")"
+              curl -fsS "$live/$file?sha=65f2d0991ae9b61148fec6a7d5a87d0101775ce3&attempt=$attempt" -o "/tmp/live/$file" || ok=0
+              cmp -s "$file" "/tmp/live/$file" || ok=0
+            done
+            if [ "$ok" -eq 1 ]; then
+              echo "Exact public unfolding files detected on attempt $attempt."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Public Pages did not match main within the audit window.'
+          exit 1
+      - name: Install Playwright
+        run: |
+          npm init -y
+          npm install playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Audit public unfolding experience
+        env:
+          AUDIT_URL: https://russelldudek.github.io/acceleration
+          AUDIT_OUTPUT: audit-evidence/live
+        run: |
+          mkdir -p audit-evidence/live
+          node tests/origami-engine-audit.mjs 2>&1 | tee audit-evidence/live/audit.log
+      - name: Upload public render evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-unfolding-fold-evidence
+          path: audit-evidence/live
+          if-no-files-found: error
