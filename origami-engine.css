@@ -1,0 +1,557 @@
+/* Precision Origami Engine — role-specific Service-to-Product Fold */
+.hero-grid{
+  max-width:1360px;
+  grid-template-columns:minmax(360px,.78fr) minmax(620px,1.22fr);
+  gap:1.75rem;
+  padding:4.4rem 1.5rem 4.8rem;
+}
+
+.fold-stage{
+  min-height:720px;
+  display:grid;
+  place-items:center;
+  padding:.5rem 0;
+}
+
+.origami-engine{
+  --hinge-top:-7deg;
+  --hinge-left:7deg;
+  --hinge-right:-7deg;
+  --hinge-bottom:7deg;
+  width:min(760px,100%);
+  color:#fff;
+  position:relative;
+  isolation:isolate;
+}
+
+.origami-engine::before{
+  content:"";
+  position:absolute;
+  inset:10% 6% 15%;
+  background:radial-gradient(circle at 50% 48%,rgba(84,187,203,.18),rgba(28,117,188,.08) 43%,transparent 72%);
+  filter:blur(24px);
+  z-index:-1;
+  pointer-events:none;
+}
+
+.origami-engine[data-result="human"]{
+  --hinge-top:-2deg;
+  --hinge-left:2deg;
+  --hinge-right:-2deg;
+  --hinge-bottom:2deg;
+}
+
+.origami-engine[data-result="agentize"]{
+  --hinge-top:-10deg;
+  --hinge-left:10deg;
+  --hinge-right:-10deg;
+  --hinge-bottom:10deg;
+}
+
+.origami-engine[data-result="productize"]{
+  --hinge-top:-13deg;
+  --hinge-left:13deg;
+  --hinge-right:-13deg;
+  --hinge-bottom:13deg;
+}
+
+.origami-sheet{
+  display:grid;
+  grid-template-columns:minmax(205px,1fr) minmax(285px,1.28fr) minmax(205px,1fr);
+  grid-template-rows:205px 290px 205px;
+  grid-template-areas:
+    ". outcome ."
+    "reuse core trust"
+    ". proof .";
+  align-items:stretch;
+  justify-items:stretch;
+  perspective:1450px;
+  transform-style:preserve-3d;
+  filter:drop-shadow(0 30px 42px rgba(0,0,0,.32));
+}
+
+.origami-face,
+.origami-core{
+  position:relative;
+  min-width:0;
+}
+
+.origami-face{
+  padding:1.15rem 1.25rem 1.05rem;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+  border:1px solid rgba(210,237,246,.52);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.26),
+    inset 0 -18px 28px rgba(3,15,26,.12),
+    0 18px 32px rgba(0,0,0,.18);
+  transition:transform .72s cubic-bezier(.2,.75,.2,1),filter .36s ease,opacity .36s ease;
+  backface-visibility:hidden;
+  will-change:transform;
+}
+
+.origami-face::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(125deg,rgba(255,255,255,.22),transparent 28%,transparent 72%,rgba(255,255,255,.08));
+  pointer-events:none;
+}
+
+.origami-face::after{
+  content:"";
+  position:absolute;
+  background:linear-gradient(90deg,transparent,rgba(227,246,251,.95),rgba(72,108,127,.82),transparent);
+  box-shadow:0 0 15px rgba(84,187,203,.35);
+  pointer-events:none;
+}
+
+.origami-face--outcome{
+  grid-area:outcome;
+  color:#092b3a;
+  background:linear-gradient(160deg,#7bd2dd 0%,#54bbcb 58%,#3597aa 100%);
+  clip-path:polygon(7% 0,93% 0,100% 100%,0 100%);
+  transform-origin:bottom center;
+  transform:rotateX(var(--hinge-top)) translateZ(7px);
+  z-index:2;
+}
+
+.origami-face--outcome::after{
+  left:2%;right:2%;bottom:-1px;height:7px;
+}
+
+.origami-face--reuse{
+  grid-area:reuse;
+  color:#fff;
+  background:linear-gradient(150deg,#174c77 0%,#0f4068 58%,#082941 100%);
+  clip-path:polygon(0 7%,100% 0,100% 100%,0 93%);
+  transform-origin:right center;
+  transform:rotateY(var(--hinge-left)) translateZ(7px);
+  z-index:2;
+}
+
+.origami-face--reuse::after{
+  top:2%;bottom:2%;right:-1px;width:7px;
+  background:linear-gradient(180deg,transparent,rgba(227,246,251,.95),rgba(72,108,127,.82),transparent);
+}
+
+.origami-face--trust{
+  grid-area:trust;
+  color:#fff;
+  background:linear-gradient(150deg,#2d8ed0 0%,#1c75bc 58%,#105b96 100%);
+  clip-path:polygon(0 0,100% 7%,100% 93%,0 100%);
+  transform-origin:left center;
+  transform:rotateY(var(--hinge-right)) translateZ(7px);
+  z-index:2;
+}
+
+.origami-face--trust::after{
+  top:2%;bottom:2%;left:-1px;width:7px;
+  background:linear-gradient(180deg,transparent,rgba(227,246,251,.95),rgba(72,108,127,.82),transparent);
+}
+
+.origami-face--proof{
+  grid-area:proof;
+  color:#172331;
+  background:linear-gradient(160deg,#f3d895 0%,#e9b85b 58%,#b98531 100%);
+  clip-path:polygon(0 0,100% 0,93% 100%,7% 100%);
+  transform-origin:top center;
+  transform:rotateX(var(--hinge-bottom)) translateZ(7px);
+  z-index:2;
+}
+
+.origami-face--proof::after{
+  left:2%;right:2%;top:-1px;height:7px;
+}
+
+.origami-face[data-state="weak"]{
+  filter:saturate(.66) brightness(.78);
+}
+
+.origami-face[data-state="develop"]{
+  filter:saturate(.86) brightness(.92);
+}
+
+.origami-face[data-state="strong"]{
+  filter:saturate(1.04) brightness(1.02);
+}
+
+.origami-face__head{
+  display:grid;
+  grid-template-columns:42px 1fr;
+  gap:.65rem;
+  align-items:center;
+  position:relative;
+  z-index:1;
+}
+
+.origami-icon{
+  width:40px;
+  height:40px;
+  padding:8px;
+  border:1px solid currentColor;
+  border-radius:10px;
+  opacity:.88;
+}
+
+.origami-face__index{
+  display:block;
+  font-family:var(--font-mono);
+  font-size:.67rem;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  opacity:.72;
+}
+
+.origami-face h3{
+  margin:.08rem 0 0;
+  font-size:1.2rem;
+  letter-spacing:-.02em;
+}
+
+.origami-face__question{
+  margin:.78rem 0 .48rem;
+  font-size:.83rem;
+  line-height:1.35;
+  opacity:.78;
+  position:relative;
+  z-index:1;
+}
+
+.engine-evidence-text{
+  margin:0 0 auto;
+  font-family:var(--font-display);
+  font-weight:800;
+  font-size:.92rem;
+  line-height:1.28;
+  position:relative;
+  z-index:1;
+}
+
+.strength-block{
+  margin-top:1rem;
+  padding-top:.65rem;
+  border-top:1px solid currentColor;
+  border-top-color:color-mix(in srgb,currentColor 34%,transparent);
+  position:relative;
+  z-index:1;
+}
+
+.strength-meta{
+  display:flex;
+  justify-content:space-between;
+  gap:.5rem;
+  font-size:.62rem;
+  letter-spacing:.1em;
+  text-transform:uppercase;
+  font-weight:800;
+  opacity:.8;
+}
+
+.strength-rail{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:4px;
+  margin-top:.42rem;
+}
+
+.strength-segment{
+  height:7px;
+  border-radius:2px;
+  background:rgba(4,22,35,.22);
+  border:1px solid rgba(255,255,255,.15);
+}
+
+.origami-face[data-state="weak"] .strength-segment:nth-child(-n+1),
+.origami-face[data-state="develop"] .strength-segment:nth-child(-n+3),
+.origami-face[data-state="strong"] .strength-segment{
+  background:currentColor;
+  opacity:.88;
+  box-shadow:0 0 8px color-mix(in srgb,currentColor 45%,transparent);
+}
+
+.origami-core{
+  grid-area:core;
+  z-index:4;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  align-items:center;
+  text-align:center;
+  padding:1.35rem 1.25rem;
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.08),transparent 34%),
+    linear-gradient(160deg,#132635 0%,#0b1721 60%,#07111a 100%);
+  border:1px solid rgba(168,219,232,.72);
+  clip-path:polygon(8% 0,92% 0,100% 12%,100% 88%,92% 100%,8% 100%,0 88%,0 12%);
+  box-shadow:
+    inset 0 0 0 2px rgba(255,255,255,.035),
+    inset 0 0 42px rgba(84,187,203,.08),
+    0 20px 42px rgba(0,0,0,.35);
+}
+
+.origami-core::before,
+.origami-core::after{
+  content:"";
+  position:absolute;
+  inset:10px;
+  clip-path:inherit;
+  border:1px solid rgba(84,187,203,.18);
+  pointer-events:none;
+}
+
+.origami-core::after{
+  inset:auto 14% 12px;
+  height:2px;
+  background:linear-gradient(90deg,transparent,var(--ap-teal),transparent);
+  border:0;
+  animation:core-scan 3.4s ease-in-out infinite;
+}
+
+.origami-core__label{
+  font-family:var(--font-mono);
+  font-size:.64rem;
+  letter-spacing:.13em;
+  text-transform:uppercase;
+  color:#8fcbd5;
+}
+
+.origami-core h3{
+  margin:.42rem 0 .9rem;
+  font-size:1.35rem;
+  letter-spacing:-.03em;
+}
+
+.workflow-path{
+  width:100%;
+  display:grid;
+  grid-template-columns:auto 1fr auto 1fr auto 1fr auto;
+  align-items:center;
+  gap:.3rem;
+  margin:.1rem 0 1rem;
+}
+
+.workflow-node{
+  width:34px;
+  height:34px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  border:1px solid rgba(135,207,222,.55);
+  background:rgba(84,187,203,.08);
+  font-family:var(--font-mono);
+  font-size:.65rem;
+  color:#dff7fa;
+}
+
+.workflow-link{
+  height:1px;
+  background:linear-gradient(90deg,rgba(84,187,203,.25),var(--ap-teal),rgba(84,187,203,.25));
+  position:relative;
+}
+
+.workflow-link::after{
+  content:"";
+  position:absolute;
+  right:0;
+  top:50%;
+  width:5px;
+  height:5px;
+  border-top:1px solid var(--ap-teal);
+  border-right:1px solid var(--ap-teal);
+  transform:translateY(-50%) rotate(45deg);
+}
+
+.origami-workflow-name{
+  font-family:var(--font-display);
+  font-size:1.02rem;
+  font-weight:900;
+  color:#fff;
+  min-height:2.5em;
+  display:grid;
+  place-items:center;
+}
+
+.origami-core__caption{
+  margin:.55rem 0 0;
+  font-size:.72rem;
+  color:#9eb8c4;
+}
+
+.disposition-rail{
+  margin:14px auto 0;
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  border:1px solid rgba(84,187,203,.54);
+  background:linear-gradient(90deg,rgba(15,64,104,.58),rgba(8,26,39,.92),rgba(28,117,188,.42));
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:0 20px 35px rgba(0,0,0,.22),inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.disposition-step{
+  min-width:0;
+  display:grid;
+  grid-template-columns:28px 1fr;
+  align-items:center;
+  gap:.55rem;
+  padding:.8rem .75rem;
+  border-right:1px solid rgba(151,204,218,.16);
+  color:#9fb4bf;
+  position:relative;
+  transition:background-color .3s ease,color .3s ease,transform .3s ease;
+}
+
+.disposition-step:last-child{border-right:0}
+
+.disposition-step::before{
+  content:"";
+  position:absolute;
+  left:0;right:0;top:0;
+  height:3px;
+  background:transparent;
+}
+
+.disposition-step[aria-current="true"]{
+  color:#fff;
+  background:rgba(84,187,203,.12);
+}
+
+.disposition-step[aria-current="true"]::before{
+  background:linear-gradient(90deg,var(--ap-teal),#7fd8e3);
+  box-shadow:0 0 16px rgba(84,187,203,.65);
+}
+
+.disposition-step svg{
+  width:25px;
+  height:25px;
+  color:var(--ap-teal);
+}
+
+.disposition-step strong{
+  display:block;
+  font-family:var(--font-display);
+  font-size:.82rem;
+}
+
+.disposition-step small{
+  display:block;
+  font-size:.61rem;
+  line-height:1.25;
+  margin-top:.12rem;
+  color:inherit;
+  opacity:.72;
+}
+
+.origami-engine[data-result="productize"] .origami-face{
+  animation:precision-lock 3.6s ease-in-out infinite;
+}
+
+.origami-engine[data-result="agentize"] .origami-core::after{
+  animation-duration:2.2s;
+}
+
+@keyframes core-scan{
+  0%,100%{opacity:.24;transform:scaleX(.52)}
+  50%{opacity:.95;transform:scaleX(1)}
+}
+
+@keyframes precision-lock{
+  0%,100%{filter:saturate(1.02) brightness(1)}
+  50%{filter:saturate(1.12) brightness(1.06)}
+}
+
+@media (max-width:1180px){
+  .hero-grid{
+    grid-template-columns:1fr;
+    max-width:900px;
+    gap:2.5rem;
+  }
+  .fold-stage{min-height:730px}
+  .origami-engine{margin-inline:auto}
+}
+
+@media (max-width:820px){
+  .hero-grid{padding-top:3.4rem}
+  .origami-engine{width:min(720px,100%)}
+  .origami-sheet{
+    grid-template-columns:minmax(185px,1fr) minmax(250px,1.22fr) minmax(185px,1fr);
+    grid-template-rows:195px 275px 195px;
+  }
+  .origami-face{padding:1rem}
+  .origami-face h3{font-size:1.08rem}
+  .engine-evidence-text{font-size:.84rem}
+}
+
+@media (max-width:640px){
+  .hero{overflow:hidden}
+  .hero-grid{padding:2.6rem 1rem 3.4rem;gap:2rem}
+  .fold-stage{min-height:0;padding:0}
+  .origami-engine{width:100%;max-width:390px}
+  .origami-sheet{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-rows:auto auto auto;
+    grid-template-areas:
+      "core core"
+      "outcome trust"
+      "reuse proof";
+    gap:10px;
+    perspective:none;
+    filter:drop-shadow(0 18px 24px rgba(0,0,0,.24));
+  }
+  .origami-face,
+  .origami-face--outcome,
+  .origami-face--reuse,
+  .origami-face--trust,
+  .origami-face--proof{
+    min-height:214px;
+    clip-path:none;
+    transform:none!important;
+    border-radius:12px;
+    padding:.88rem;
+  }
+  .origami-core{
+    min-height:235px;
+    clip-path:polygon(5% 0,95% 0,100% 9%,100% 91%,95% 100%,5% 100%,0 91%,0 9%);
+    padding:1.1rem;
+  }
+  .origami-face::after{display:none}
+  .origami-face__head{grid-template-columns:34px 1fr;gap:.5rem}
+  .origami-icon{width:32px;height:32px;padding:6px;border-radius:8px}
+  .origami-face h3{font-size:1rem}
+  .origami-face__question{font-size:.72rem;margin:.58rem 0 .34rem}
+  .engine-evidence-text{font-size:.77rem;line-height:1.25}
+  .strength-block{margin-top:.7rem;padding-top:.52rem}
+  .strength-meta{font-size:.54rem}
+  .strength-segment{height:6px}
+  .origami-core h3{font-size:1.2rem;margin-bottom:.7rem}
+  .workflow-path{gap:.18rem;margin-bottom:.72rem}
+  .workflow-node{width:30px;height:30px;font-size:.58rem}
+  .origami-workflow-name{font-size:.95rem;min-height:2.2em}
+  .origami-core__caption{font-size:.66rem}
+  .disposition-rail{
+    grid-template-columns:repeat(2,1fr);
+    margin-top:10px;
+    border-radius:12px;
+  }
+  .disposition-step{
+    padding:.72rem .65rem;
+    border-bottom:1px solid rgba(151,204,218,.16);
+  }
+  .disposition-step:nth-child(2){border-right:0}
+  .disposition-step:nth-child(n+3){border-bottom:0}
+}
+
+@media (prefers-reduced-motion:reduce){
+  .origami-face,
+  .disposition-step{
+    transition-duration:0s!important;
+    animation:none!important;
+  }
+  .origami-core::after{
+    animation:none!important;
+    opacity:.65;
+    transform:none;
+  }
+}
