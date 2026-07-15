@@ -1,0 +1,50 @@
+name: Precision Origami Engine audit
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install browser audit dependency
+        run: |
+          npm init -y
+          npm install playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start local campaign server
+        run: |
+          python3 -m http.server 4173 > /tmp/acceleration-http.log 2>&1 &
+          for attempt in {1..30}; do
+            curl -fsS http://127.0.0.1:4173/index.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/acceleration-http.log
+          exit 1
+      - name: Run Precision Origami Engine audit
+        env:
+          AUDIT_URL: http://127.0.0.1:4173
+          AUDIT_OUTPUT: audit-evidence
+        run: |
+          mkdir -p audit-evidence
+          set +e
+          node tests/origami-engine-audit.mjs 2>&1 | tee audit-evidence/audit.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: precision-origami-engine-evidence
+          path: audit-evidence
+          if-no-files-found: ignore
