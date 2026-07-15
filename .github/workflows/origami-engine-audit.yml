@@ -1,4 +1,4 @@
-name: Precision Origami Engine audit
+name: Three-dimensional Fold audit
 
 on:
   pull_request:
@@ -17,6 +17,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+      - name: Verify local 3D dependency
+        run: |
+          test -s assets/vendor/three/three.module.min.js
+          test -s assets/vendor/three/LICENSE
+          grep -q 'const t="170"' assets/vendor/three/three.module.min.js
+          grep -q 'The MIT License' assets/vendor/three/LICENSE
+          grep -q 'three-fold.js' index.html
+          grep -q 'three-fold-canvas' index.html
+          ! grep -q 'class="origami-sheet"' index.html
       - name: Install browser audit dependency
         run: |
           npm init -y
@@ -31,7 +40,7 @@ jobs:
           done
           cat /tmp/acceleration-http.log
           exit 1
-      - name: Run local Precision Origami Engine audit
+      - name: Run local three-dimensional Fold audit
         env:
           AUDIT_URL: http://127.0.0.1:4173
           AUDIT_OUTPUT: audit-evidence/local
@@ -48,15 +57,20 @@ jobs:
           for attempt in {1..90}; do
             html=$(curl -fsS "$live/index.html?sha=$GITHUB_SHA&attempt=$attempt" || true)
             css=$(curl -fsS "$live/origami-engine.css?sha=$GITHUB_SHA&attempt=$attempt" || true)
-            if grep -Fq 'origami-engine.css' <<<"$html" && grep -Fq '.origami-engine' <<<"$css"; then
-              echo "Live Pages publication detected on attempt $attempt."
+            renderer=$(curl -fsS "$live/three-fold.js?sha=$GITHUB_SHA&attempt=$attempt" || true)
+            runtime=$(curl -fsS "$live/assets/vendor/three/three.module.min.js?sha=$GITHUB_SHA&attempt=$attempt" || true)
+            if grep -Fq 'three-fold-canvas' <<<"$html" \
+              && grep -Fq '.three-fold-stage' <<<"$css" \
+              && grep -Fq 'WebGLRenderer' <<<"$renderer" \
+              && grep -Fq 'const t="170"' <<<"$runtime"; then
+              echo "Live Pages 3D publication detected on attempt $attempt."
               exit 0
             fi
             sleep 5
           done
-          echo 'Live Pages did not publish the Precision Origami Engine within the audit window.'
+          echo 'Live Pages did not publish the three-dimensional Fold within the audit window.'
           exit 1
-      - name: Run live Precision Origami Engine audit
+      - name: Run live three-dimensional Fold audit
         if: github.event_name == 'push'
         env:
           AUDIT_URL: https://russelldudek.github.io/acceleration
@@ -71,6 +85,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: precision-origami-engine-evidence
+          name: three-dimensional-fold-evidence
           path: audit-evidence
           if-no-files-found: ignore
