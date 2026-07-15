@@ -31,14 +31,40 @@ jobs:
           done
           cat /tmp/acceleration-http.log
           exit 1
-      - name: Run Precision Origami Engine audit
+      - name: Run local Precision Origami Engine audit
         env:
           AUDIT_URL: http://127.0.0.1:4173
-          AUDIT_OUTPUT: audit-evidence
+          AUDIT_OUTPUT: audit-evidence/local
         run: |
-          mkdir -p audit-evidence
+          mkdir -p audit-evidence/local
           set +e
-          node tests/origami-engine-audit.mjs 2>&1 | tee audit-evidence/audit.log
+          node tests/origami-engine-audit.mjs 2>&1 | tee audit-evidence/local/audit.log
+          status=${PIPESTATUS[0]}
+          exit "$status"
+      - name: Wait for live Pages publication
+        if: github.event_name == 'push'
+        run: |
+          live='https://russelldudek.github.io/acceleration'
+          for attempt in {1..90}; do
+            html=$(curl -fsS "$live/index.html?sha=$GITHUB_SHA&attempt=$attempt" || true)
+            css=$(curl -fsS "$live/origami-engine.css?sha=$GITHUB_SHA&attempt=$attempt" || true)
+            if grep -Fq 'origami-engine.css' <<<"$html" && grep -Fq '.origami-engine' <<<"$css"; then
+              echo "Live Pages publication detected on attempt $attempt."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo 'Live Pages did not publish the Precision Origami Engine within the audit window.'
+          exit 1
+      - name: Run live Precision Origami Engine audit
+        if: github.event_name == 'push'
+        env:
+          AUDIT_URL: https://russelldudek.github.io/acceleration
+          AUDIT_OUTPUT: audit-evidence/live
+        run: |
+          mkdir -p audit-evidence/live
+          set +e
+          node tests/origami-engine-audit.mjs 2>&1 | tee audit-evidence/live/audit.log
           status=${PIPESTATUS[0]}
           exit "$status"
       - name: Upload visual evidence
