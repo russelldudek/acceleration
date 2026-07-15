@@ -2,3 +2,4 @@ Run the GitHub-hosted live campaign audit against the published candidate vision
 Retry with preserved render evidence.
 Retry with corrected browser module resolution.
 Retry after semantic document-heading correction.
+Retry after official logo rendering repair.
