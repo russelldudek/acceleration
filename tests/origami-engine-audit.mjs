@@ -52,16 +52,16 @@ for (const [name, viewport] of viewports) {
         visible: getComputedStyle(face).visibility !== 'hidden' && getComputedStyle(face).opacity !== '0',
       };
     });
-    const engine = document.querySelector('.origami-engine')?.getBoundingClientRect();
+    const sheet = document.querySelector('.origami-sheet');
+    const sheetRect = sheet?.getBoundingClientRect();
     const rail = document.querySelector('.disposition-rail')?.getBoundingClientRect();
     const core = document.querySelector('.origami-core')?.getBoundingClientRect();
-    const grid = document.querySelector('.origami-sheet');
     return {
       overflow,
       faces,
-      railGap: engine && rail ? Math.abs(rail.top - engine.bottom) : 999,
+      railGap: sheetRect && rail ? rail.top - sheetRect.bottom : 999,
       coreWidth: core?.width || 0,
-      gridColumns: grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 0,
+      gridColumns: sheet ? getComputedStyle(sheet).gridTemplateColumns.split(' ').length : 0,
     };
   });
 
@@ -73,8 +73,8 @@ for (const [name, viewport] of viewports) {
     check(face.left >= -1 && face.right <= viewport.width + 1, `${name}: face ${index + 1} leaves viewport`);
   });
   check(geometry.coreWidth >= (name === 'mobile' ? 330 : 250), `${name}: workflow core lacks visual authority`);
-  check(geometry.railGap < 110, `${name}: disposition rail is detached from engine`);
-  if (name === 'mobile') check(geometry.gridColumns === 2, `mobile: expected two-column top-down evidence layout`);
+  check(geometry.railGap >= 0 && geometry.railGap <= 24, `${name}: disposition rail is detached from sheet (${geometry.railGap}px)`);
+  if (name === 'mobile') check(geometry.gridColumns === 2, 'mobile: expected two-column top-down evidence layout');
 
   await page.locator('[data-scenario="discovery"]').click();
   check((await page.locator('.origami-workflow-name').textContent())?.trim() === 'Publisher discovery', `${name}: hero workflow did not update`);
