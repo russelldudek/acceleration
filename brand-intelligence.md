@@ -7,11 +7,11 @@
 
 ## Official logo source
 - Business Wire-hosted Acceleration Partners image: https://mms.businesswire.com/media/20221209005500/en/1660866/4/AP_2022.jpg?download=1
-- Preserved source: `assets/brand/ap-logo-source-2022.jpg.b64`
-- Non-destructive whitespace-trim derivative: `assets/brand/ap-logo-lockup.svg`
+- Local asset: `assets/brand/ap-logo-lockup.svg`
+- Preservation method: the official JPEG bytes are embedded directly in the local SVG as a base64 image; the mark is not traced, redrawn, recolored, distorted, or animated.
 
 ## Visible company identity
-The official logo/wordmark is presented above the fold inside a neutral white identity card, paired immediately with `Candidate vision for Director of Applied AI Product by Russell Dudek`. The mark is not traced, recolored, animated, distorted, or merged into the candidate-created operating artifact.
+The official logo/wordmark is presented above the fold inside a neutral white identity card, paired immediately with `Candidate vision for Director of Applied AI Product by Russell Dudek`. The mark is not merged into the candidate-created operating artifact.
 
 ## Color token provenance
 - `#54bbcb` - source-sampled from official site inline SVG/CSS (`--ap-teal`)
@@ -47,7 +47,3 @@ All surfaces identify the work as independent candidate analysis. No fake AP nav
 Candidate vision deployment target: `https://russelldudek.github.io/acceleration/`
 
 Job posting source: `https://job-boards.greenhouse.io/accelerationpartners/jobs/8060183?gh_src=cd1610a91us`
-
-## Asset preservation note
-
-The rendered SVG contains the approved JPEG image as a base64-embedded asset without tracing, recoloring, distortion, or redrawing. The exact source bytes are preserved separately in `assets/brand/ap-logo-source-2022.jpg.b64` for reconstruction.
