@@ -1,0 +1,93 @@
+name: Install 3D fold markup
+
+on:
+  push:
+    branches: [fix/threejs-fold-engine]
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/threejs-fold-engine
+      - name: Replace hero mechanism
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('index.html')
+          text = path.read_text()
+          start = text.index('    <div class="fold-stage">')
+          end = text.index('  </div>\n</section>\n\n<section class="section pressure-band"', start)
+          replacement = '''    <div class="fold-stage">
+              <div class="three-fold-stage" data-state="assist" data-fallback="false" aria-label="Three-dimensional Service-to-Product Fold evaluating a recurring workflow through Outcome, Reuse, Trust, and Proof">
+                <canvas class="three-fold-canvas" aria-hidden="true"></canvas>
+
+                <div class="three-fold-fallback" aria-hidden="true">
+                  <div class="three-fold-fallback__sheet" aria-hidden="true">
+                    <span class="three-fold-fallback__plane three-fold-fallback__plane--top"></span>
+                    <span class="three-fold-fallback__plane three-fold-fallback__plane--left"></span>
+                    <span class="three-fold-fallback__plane three-fold-fallback__plane--right"></span>
+                    <span class="three-fold-fallback__plane three-fold-fallback__plane--bottom"></span>
+                    <span class="three-fold-fallback__core"></span>
+                  </div>
+                </div>
+
+                <div class="three-fold-labels">
+                  <article class="three-fold-label" data-fold-label="outcome" data-engine-evidence="outcome" data-state="strong">
+                    <div class="three-fold-label__head"><span class="three-fold-label__index">01</span><strong>Outcome</strong></div>
+                    <small class="engine-evidence-text">More capacity for strategic analysis</small>
+                    <span class="three-fold-label__strength"><span class="strength-label">Strong</span></span>
+                  </article>
+                  <article class="three-fold-label" data-fold-label="reuse" data-engine-evidence="reuse" data-state="strong">
+                    <div class="three-fold-label__head"><span class="three-fold-label__index">02</span><strong>Reuse</strong></div>
+                    <small class="engine-evidence-text">Recurring, configurable workflow</small>
+                    <span class="three-fold-label__strength"><span class="strength-label">Strong</span></span>
+                  </article>
+                  <article class="three-fold-label" data-fold-label="trust" data-engine-evidence="trust" data-state="strong">
+                    <div class="three-fold-label__head"><span class="three-fold-label__index">03</span><strong>Trust</strong></div>
+                    <small class="engine-evidence-text">Structured, reviewable output</small>
+                    <span class="three-fold-label__strength"><span class="strength-label">Strong</span></span>
+                  </article>
+                  <article class="three-fold-label" data-fold-label="proof" data-engine-evidence="proof" data-state="develop">
+                    <div class="three-fold-label__head"><span class="three-fold-label__index">04</span><strong>Proof</strong></div>
+                    <small class="engine-evidence-text">Quality, rework, adoption, time saved</small>
+                    <span class="three-fold-label__strength"><span class="strength-label">Developing</span></span>
+                  </article>
+                </div>
+
+                <section class="three-fold-core-copy" aria-label="Recurring service workflow core">
+                  <span class="core-kicker">Recurring service workflow</span>
+                  <h3>Service-to-Product Fold</h3>
+                  <strong class="three-fold-workflow">Weekly client reporting</strong>
+                  <p>Evidence changes the shape of the operating posture.</p>
+                </section>
+
+                <div class="three-fold-disposition" aria-label="Operating disposition">
+                  <div class="disposition-step" data-disposition="human" aria-current="false"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="10" r="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M7 28c0-6 3-10 9-10s9 4 9 10" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><strong>Human-led</strong><small>Context remains decisive</small></div></div>
+                  <div class="disposition-step" data-disposition="assist" aria-current="true"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="11" cy="11" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="22" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M4 27c0-6 2-10 7-10s7 4 7 10M18 27c0-4 1-7 4-7s5 3 5 7" fill="none" stroke="currentColor" stroke-width="2"/></svg><div><strong>Assist</strong><small>AI prepares; experts decide</small></div></div>
+                  <div class="disposition-step" data-disposition="agentize" aria-current="false"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="8" width="22" height="17" rx="5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M16 3v5M11 16h.01M21 16h.01M11 21h10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg><div><strong>Agentize</strong><small>Bounded autonomy + review</small></div></div>
+                  <div class="disposition-step" data-disposition="productize" aria-current="false"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 3l12 7-12 7L4 10l12-7zM4 10v13l12 7 12-7V10M16 17v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg><div><strong>Productize</strong><small>Reusable capability at scale</small></div></div>
+                </div>
+              </div>
+            </div>
+          '''
+          text = text[:start] + replacement + text[end:]
+          text = text.replace('<script src="app.js"></script>', '<script src="app.js"></script>\n<script type="module" src="three-fold.js"></script>')
+          path.write_text(text)
+          PY
+          grep -q 'canvas class="three-fold-canvas"' index.html
+          grep -q 'script type="module" src="three-fold.js"' index.html
+          ! grep -q 'class="origami-sheet"' index.html
+      - name: Commit markup
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html
+          git commit -m 'Replace CSS fold with 3D stage markup'
+          git push origin HEAD:fix/threejs-fold-engine
