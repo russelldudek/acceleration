@@ -298,8 +298,16 @@ function initializeScene() {
       const projected = new THREE.Vector3();
       panel.anchor.getWorldPosition(projected);
       projected.project(camera);
-      const x = (projected.x * 0.5 + 0.5) * width;
-      const y = (-projected.y * 0.5 + 0.5) * height;
+      let x = (projected.x * 0.5 + 0.5) * width;
+      let y = (-projected.y * 0.5 + 0.5) * height;
+      const halfWidth = label.offsetWidth / 2;
+      const halfHeight = label.offsetHeight / 2;
+      const horizontalInset = halfWidth + (width < 520 ? 8 : 12);
+      const dispositionHeight = stage.querySelector('.three-fold-disposition')?.offsetHeight || 0;
+      const verticalTop = halfHeight + 10;
+      const verticalBottom = height - dispositionHeight - halfHeight - 14;
+      x = THREE.MathUtils.clamp(x, horizontalInset, width - horizontalInset);
+      y = THREE.MathUtils.clamp(y, verticalTop, Math.max(verticalTop, verticalBottom));
       label.style.setProperty('--fold-label-x', `${x}px`);
       label.style.setProperty('--fold-label-y', `${y}px`);
     });
