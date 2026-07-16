@@ -1,0 +1,75 @@
+name: Verify published document downloads
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Wait for exact published document files
+        run: |
+          set -euo pipefail
+          BASE_URL="https://russelldudek.github.io/acceleration"
+          FILES=(
+            index.html
+            resume.html
+            cover-letter.html
+            interview-brief.html
+            120-day-plan.html
+            hard-objection-analysis.html
+            service-to-product-fold-canvas.html
+            docs/russell-dudek-acceleration-partners-resume.pdf
+          )
+          for attempt in $(seq 1 60); do
+            all_match=true
+            for file in "${FILES[@]}"; do
+              mkdir -p "/tmp/live/$(dirname "$file")"
+              if ! curl -fsSL --retry 2 --retry-delay 1 "$BASE_URL/$file?v=${GITHUB_SHA}" -o "/tmp/live/$file"; then
+                all_match=false
+                break
+              fi
+              if ! cmp -s "$file" "/tmp/live/$file"; then
+                all_match=false
+                break
+              fi
+            done
+            if [ "$all_match" = true ]; then
+              echo "Published document files match main."
+              exit 0
+            fi
+            echo "Attempt $attempt: waiting for GitHub Pages to publish the document correction."
+            sleep 10
+          done
+          echo "Pages did not publish the exact document files within the audit window."
+          exit 1
+      - name: Install browser and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Audit public one-click downloads
+        env:
+          AUDIT_URL: https://russelldudek.github.io/acceleration
+          AUDIT_OUTPUT: live-document-download-evidence
+        run: node scripts/audit-document-downloads.mjs
+      - name: Render public resume PDF
+        run: |
+          mkdir -p live-document-download-evidence/resume-pdf-render
+          pdftoppm -png -r 160 docs/russell-dudek-acceleration-partners-resume.pdf live-document-download-evidence/resume-pdf-render/page
+      - name: Upload live document evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-document-download-evidence
+          path: live-document-download-evidence
+          if-no-files-found: warn
