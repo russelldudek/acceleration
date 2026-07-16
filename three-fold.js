@@ -12,8 +12,12 @@ const diagnostics = {
   meshCount: 0,
   state: 'assist',
   phase: 'booting',
+  choreography: 'deliberate-handoff',
   rotations: [],
   targetRotations: [],
+  aggregateOpening: 0,
+  gateAsymmetry: 0,
+  decisionGap: 0,
   settled: false,
   fallbackActive: false,
   reducedMotion: reducedMotionQuery.matches,
@@ -23,6 +27,16 @@ const diagnostics = {
   unfoldDistance: 0,
 };
 window.__foldEngineDiagnostics = diagnostics;
+
+function synchronizeFallback(nextState) {
+  if (!stage || !nextState) return;
+  stage.dataset.state = nextState.result;
+  diagnostics.state = nextState.result;
+  diagnostics.choreography = nextState.choreography || 'deliberate-handoff';
+  diagnostics.phase = 'settled';
+  diagnostics.settled = true;
+  diagnostics.continuousAnimation = false;
+}
 
 function activateFallback() {
   if (!stage) return;
@@ -36,6 +50,8 @@ function activateFallback() {
   diagnostics.phase = 'settled';
   diagnostics.fallbackActive = true;
   diagnostics.settled = true;
+  synchronizeFallback(window.__foldScenarioState || { result: 'assist', choreography: 'deliberate-handoff' });
+  window.addEventListener('foldscenariochange', event => synchronizeFallback(event.detail));
 }
 
 if (!stage || !canvas || forceFallback) {
