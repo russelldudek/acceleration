@@ -85,28 +85,42 @@ jobs:
         run: node scripts/generate-resume-pdf.mjs
       - name: Validate generated resume
         run: |
-          test "$(pdfinfo docs/russell-dudek-acceleration-partners-resume.pdf | awk '/^Pages:/ {print $2}')" = "2"
-          pdfinfo docs/russell-dudek-acceleration-partners-resume.pdf | grep -Eq 'Page size:.*612 x 792 pts|Page size:.*letter'
-          pdftotext docs/russell-dudek-acceleration-partners-resume.pdf /tmp/resume.txt
-          grep -q 'Role-Aligned Experience' /tmp/resume.txt
-          grep -q 'Applied AI Product Operating Model' /tmp/resume.txt
-          grep -q 'Additional Experience' /tmp/resume.txt
-          grep -q 'Candidate Thesis' /tmp/resume.txt
-          mkdir -p document-parity-bundle/resume-render
+          mkdir -p document-parity-bundle/resume-render document-parity-bundle/validation
+          pdfinfo docs/russell-dudek-acceleration-partners-resume.pdf | tee document-parity-bundle/validation/resume-pdfinfo.txt
+          pdftotext docs/russell-dudek-acceleration-partners-resume.pdf document-parity-bundle/validation/resume-text.txt
           pdftoppm -png -r 160 docs/russell-dudek-acceleration-partners-resume.pdf document-parity-bundle/resume-render/page
-          test -s document-parity-bundle/resume-render/page-1.png
-          test -s document-parity-bundle/resume-render/page-2.png
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          info = Path('document-parity-bundle/validation/resume-pdfinfo.txt').read_text()
+          text = Path('document-parity-bundle/validation/resume-text.txt').read_text()
+          pages = int(re.search(r'^Pages:\s+(\d+)', info, re.M).group(1))
+          size = re.search(r'^Page size:\s+(.+)', info, re.M).group(1)
+          required = ['Role-Aligned Experience', 'Applied AI Product Operating Model', 'Additional Experience', 'Candidate Thesis']
+          missing = [term for term in required if term not in text]
+          print({'pages': pages, 'size': size, 'missing_terms': missing})
+          errors = []
+          if pages != 2: errors.append(f'Expected 2 pages, found {pages}')
+          if not ('612 x 792 pts' in size or 'letter' in size.lower()): errors.append(f'Expected US Letter, found {size}')
+          if missing: errors.append(f'Missing extracted text: {missing}')
+          if not Path('document-parity-bundle/resume-render/page-1.png').exists(): errors.append('Missing page-1 render')
+          if not Path('document-parity-bundle/resume-render/page-2.png').exists(): errors.append('Missing page-2 render')
+          if errors:
+              raise SystemExit('; '.join(errors))
+          PY
       - name: Audit corrected working tree
         env:
           AUDIT_URL: http://127.0.0.1:4173
           AUDIT_OUTPUT: document-parity-bundle/audit-evidence
         run: node scripts/audit-document-downloads.mjs
       - name: Package corrected source and PDF
+        if: always()
         run: |
           mkdir -p document-parity-bundle/source/docs
-          cp index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection.html service-to-product-fold-canvas.html document-parity-bundle/source/
-          cp docs/russell-dudek-acceleration-partners-resume.pdf document-parity-bundle/source/docs/
+          cp index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection.html service-to-product-fold-canvas.html document-parity-bundle/source/ || true
+          cp docs/russell-dudek-acceleration-partners-resume.pdf document-parity-bundle/source/docs/ || true
       - name: Upload audited bundle
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: audited-document-parity-bundle
