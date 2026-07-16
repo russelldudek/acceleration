@@ -1,0 +1,69 @@
+name: Verify final published interactive disposition rail
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Wait for exact final files
+        run: |
+          set -euo pipefail
+          BASE_URL="https://russelldudek.github.io/acceleration"
+          FILES=(
+            index.html
+            app.js
+            interactive-disposition.css
+            three-fold.js
+            three-fold/engine.js
+            three-fold/geometry.js
+            three-fold/postures.js
+            scripts/audit-interactive-rail.mjs
+            assets/vendor/three/three.module.min.js
+          )
+          for attempt in $(seq 1 60); do
+            all_match=true
+            for file in "${FILES[@]}"; do
+              mkdir -p "/tmp/live/$(dirname "$file")"
+              if ! curl -fsSL --retry 2 --retry-delay 1 "$BASE_URL/$file?v=${GITHUB_SHA}" -o "/tmp/live/$file"; then
+                all_match=false
+                break
+              fi
+              if ! cmp -s "$file" "/tmp/live/$file"; then
+                all_match=false
+                break
+              fi
+            done
+            if [ "$all_match" = true ]; then
+              echo "Final published files match main."
+              exit 0
+            fi
+            echo "Attempt $attempt: waiting for final Pages publication."
+            sleep 10
+          done
+          exit 1
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Audit public interactive controls
+        env:
+          AUDIT_URL: https://russelldudek.github.io/acceleration
+          AUDIT_OUTPUT: final-live-interactive-evidence
+        run: node scripts/audit-interactive-rail.mjs
+      - name: Upload final public evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: final-live-interactive-disposition-evidence
+          path: final-live-interactive-evidence
+          if-no-files-found: warn
