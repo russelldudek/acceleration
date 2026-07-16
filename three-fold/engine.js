@@ -1,9 +1,57 @@
 import * as THREE from '../assets/vendor/three/three.module.min.js';
 import { addEdges, createHingedPanel, createRoundedPlate } from './geometry.js';
 
-const STATE_ANGLES = { human: 0.18, assist: 0.52, agentize: 0.82, productize: 1.08 };
-const STRENGTH_SCALE = { weak: 0.68, develop: 0.84, strong: 1 };
 const CLOSED_ANGLE = 1.5;
+const STRENGTH_SCALE = { weak: 0.68, develop: 0.84, strong: 1 };
+const DEFAULT_GEOMETRY = {
+  angles: { outcome: 0.48, reuse: 0.52, trust: -0.42, proof: -0.34 },
+  rotation: [-0.04, 0.08, -0.018],
+  scale: 1,
+  position: [0, 0, 0],
+};
+
+const CHOREOGRAPHIES = {
+  'open-forum': {
+    mode: 'broad-open',
+    refoldDuration: 320,
+    holdDuration: 80,
+    unfoldDuration: 920,
+    delays: [0, 30, 10, 40],
+    closedRotation: [-0.28, 0.32, -0.05],
+    closedScale: 0.88,
+    closedPosition: [0, 0, -0.22],
+  },
+  'deliberate-handoff': {
+    mode: 'handoff',
+    refoldDuration: 390,
+    holdDuration: 120,
+    unfoldDuration: 1120,
+    delays: [0, 70, 235, 335],
+    closedRotation: [-0.4, 0.48, -0.09],
+    closedScale: 0.83,
+    closedPosition: [0, 0, -0.38],
+  },
+  'controlled-enclosure': {
+    mode: 'guarded',
+    refoldDuration: 420,
+    holdDuration: 110,
+    unfoldDuration: 1180,
+    delays: [95, 0, 275, 45],
+    closedRotation: [-0.34, -0.42, 0.08],
+    closedScale: 0.86,
+    closedPosition: [0.08, 0, -0.3],
+  },
+  'locked-capability': {
+    mode: 'lock',
+    refoldDuration: 520,
+    holdDuration: 280,
+    unfoldDuration: 820,
+    delays: [0, 0, 0, 0],
+    closedRotation: [-0.14, 0.05, 0],
+    closedScale: 0.78,
+    closedPosition: [0, -0.03, -0.55],
+  },
+};
 
 export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMotionQuery }) {
   const contextOptions = {
@@ -84,7 +132,11 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     { id: 'trust', color: 0x1c75bc, width: 2.22, height: 2.96, position: [2.14, 0, 0.02], translate: [1.11, 0, 0], axis: 'y', sign: -1, anchor: [1.31, 0, 0.22], order: 2 },
     { id: 'proof', color: 0x3c9eb2, width: 4.05, height: 2.22, position: [0, -1.52, 0.02], translate: [0, -1.11, 0], axis: 'x', sign: -1, anchor: [0, -1.28, 0.22], order: 3 },
   ];
-  const panels = panelSpecs.map(spec => createHingedPanel(system, spec));
+  const panels = panelSpecs.map(spec => {
+    const panel = createHingedPanel(system, spec);
+    panel.baseMeshPosition = panel.mesh.position.clone();
+    return panel;
+  });
 
   const rail = new THREE.Group();
   rail.position.set(0, -4.05, -0.03);
@@ -113,23 +165,44 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
   scene.add(shadowPlane);
 
   let state = window.__foldScenarioState || {
-    key: 'reporting', label: 'Weekly client reporting', result: 'assist',
+    key: 'reporting',
+    label: 'Weekly client reporting',
+    result: 'assist',
+    choreography: 'deliberate-handoff',
+    postureProfile: { geometry: DEFAULT_GEOMETRY },
     evidence: { outcome: ['strong'], reuse: ['strong'], trust: ['strong'], proof: ['develop'] },
   };
   let animation = null;
   let rafId = 0;
   let idleStart = performance.now();
 
-  const targetFor = (panel, nextState) => {
-    const evidence = nextState.evidence?.[panel.id]?.[0] || 'develop';
-    return panel.sign * (STATE_ANGLES[nextState.result] ?? STATE_ANGLES.assist) * (STRENGTH_SCALE[evidence] ?? STRENGTH_SCALE.develop);
-  };
   const closedFor = panel => panel.sign * CLOSED_ANGLE;
+
+  function geometryFor(nextState) {
+    return nextState.postureProfile?.geometry || DEFAULT_GEOMETRY;
+  }
+
+  function targetFor(panel, nextState) {
+    const configured = geometryFor(nextState).angles?.[panel.id];
+    if (Number.isFinite(configured)) return configured;
+    const evidence = nextState.evidence?.[panel.id]?.[0] || 'develop';
+    return panel.sign * 0.52 * (STRENGTH_SCALE[evidence] ?? STRENGTH_SCALE.develop);
+  }
+
+  function finalAssemblyFor(nextState) {
+    const geometry = geometryFor(nextState);
+    return {
+      rotation: geometry.rotation || DEFAULT_GEOMETRY.rotation,
+      scale: geometry.scale ?? DEFAULT_GEOMETRY.scale,
+      position: geometry.position || DEFAULT_GEOMETRY.position,
+    };
+  }
 
   function applyVisualEvidence(nextState) {
     panels.forEach(panel => {
       const evidence = nextState.evidence?.[panel.id]?.[0] || 'develop';
       panel.finalTarget = targetFor(panel, nextState);
+      panel.mesh.position.copy(panel.baseMeshPosition);
       panel.mesh.material.color.copy(panel.baseColor);
       panel.mesh.material.emissive.copy(panel.baseColor);
       if (evidence === 'weak') {
@@ -164,7 +237,7 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     }
     if (disposition) {
       disposition.style.transition = 'opacity .42s ease, transform .55s cubic-bezier(.2,.8,.2,1)';
-      disposition.style.opacity = phase === 'settled' ? '1' : '.36';
+      disposition.style.opacity = phase === 'settled' ? '1' : '.48';
       disposition.style.transform = phase === 'settled' ? 'translateX(-50%) translateY(0)' : 'translateX(-50%) translateY(8px)';
     }
     labels.forEach((label, index) => {
@@ -180,17 +253,23 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     const c1 = 1.35;
     return 1 + (c1 + 1) * (value - 1) ** 3 + c1 * (value - 1) ** 2;
   };
+  const easeOutQuart = value => 1 - (1 - value) ** 4;
+
+  function setAssembly(assembly) {
+    system.rotation.set(...assembly.rotation);
+    system.scale.setScalar(assembly.scale);
+    system.position.set(...assembly.position);
+  }
 
   function settleImmediately(nextState) {
     state = nextState;
     stage.dataset.state = state.result;
     applyVisualEvidence(state);
     panels.forEach(panel => { panel.group.rotation[panel.axis] = panel.finalTarget; });
-    system.rotation.set(-0.04, 0.08, -0.018);
-    system.scale.setScalar(1);
-    system.position.set(0, 0, 0);
+    setAssembly(finalAssemblyFor(state));
     diagnostics.phase = 'settled';
     diagnostics.state = state.result;
+    diagnostics.choreography = state.choreography || 'deliberate-handoff';
     diagnostics.settled = true;
     diagnostics.continuousAnimation = false;
     setInterfacePhase('settled', 4);
@@ -202,11 +281,17 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     stage.dataset.state = state.result;
     applyVisualEvidence(state);
     diagnostics.state = state.result;
+    diagnostics.choreography = state.choreography || 'deliberate-handoff';
+
     if (reducedMotionQuery.matches) {
+      animation = null;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = 0;
       settleImmediately(state);
       return;
     }
 
+    const choreography = CHOREOGRAPHIES[state.choreography] || CHOREOGRAPHIES['deliberate-handoff'];
     const starts = panels.map(panel => panel.group.rotation[panel.axis]);
     const closed = panels.map(closedFor);
     const finals = panels.map(panel => panel.finalTarget);
@@ -216,18 +301,36 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     diagnostics.settled = false;
     diagnostics.continuousAnimation = true;
     setInterfacePhase(intro ? 'folded' : 'refolding', 0);
+
     animation = {
       intro,
       startTime: performance.now(),
       starts,
       closed,
       finals,
-      refoldDuration: intro ? 220 : 430,
-      holdDuration: intro ? 230 : 140,
-      unfoldDuration: 1250,
-      stagger: 125,
+      finalAssembly: finalAssemblyFor(state),
+      assemblyStart: {
+        rotation: [system.rotation.x, system.rotation.y, system.rotation.z],
+        scale: system.scale.x,
+        position: [system.position.x, system.position.y, system.position.z],
+      },
+      ...choreography,
     };
     if (!rafId) rafId = requestAnimationFrame(tick);
+  }
+
+  function interpolateAssembly(from, to, progress) {
+    system.rotation.set(
+      THREE.MathUtils.lerp(from.rotation[0], to.rotation[0], progress),
+      THREE.MathUtils.lerp(from.rotation[1], to.rotation[1], progress),
+      THREE.MathUtils.lerp(from.rotation[2], to.rotation[2], progress),
+    );
+    system.scale.setScalar(THREE.MathUtils.lerp(from.scale, to.scale, progress));
+    system.position.set(
+      THREE.MathUtils.lerp(from.position[0], to.position[0], progress),
+      THREE.MathUtils.lerp(from.position[1], to.position[1], progress),
+      THREE.MathUtils.lerp(from.position[2], to.position[2], progress),
+    );
   }
 
   function updateSequence(time) {
@@ -236,25 +339,29 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     const refoldEnd = animation.refoldDuration;
     const holdEnd = refoldEnd + animation.holdDuration;
     const unfoldStart = holdEnd;
-    const total = unfoldStart + animation.unfoldDuration + animation.stagger * (panels.length - 1);
+    const maxDelay = Math.max(...animation.delays);
+    const total = unfoldStart + animation.unfoldDuration + maxDelay;
+    const closedAssembly = {
+      rotation: animation.closedRotation,
+      scale: animation.closedScale,
+      position: animation.closedPosition,
+    };
 
     if (elapsed <= refoldEnd) {
-      const progress = animation.intro ? 1 : easeInOutCubic(elapsed / refoldEnd);
+      const progress = animation.intro ? 1 : easeInOutCubic(elapsed / Math.max(1, refoldEnd));
       diagnostics.phase = animation.intro ? 'folded' : 'refolding';
       panels.forEach((panel, index) => {
         panel.group.rotation[panel.axis] = THREE.MathUtils.lerp(animation.starts[index], animation.closed[index], progress);
       });
-      system.rotation.x = THREE.MathUtils.lerp(-0.04, -0.42, progress);
-      system.rotation.y = THREE.MathUtils.lerp(0.08, 0.52, progress);
-      system.rotation.z = THREE.MathUtils.lerp(-0.018, -0.1, progress);
-      system.scale.setScalar(THREE.MathUtils.lerp(1, 0.82, progress));
-      system.position.z = THREE.MathUtils.lerp(0, -0.4, progress);
+      interpolateAssembly(animation.assemblyStart, closedAssembly, progress);
       setInterfacePhase(diagnostics.phase, 0);
       return true;
     }
+
     if (elapsed <= holdEnd) {
       diagnostics.phase = 'folded';
       panels.forEach((panel, index) => { panel.group.rotation[panel.axis] = animation.closed[index]; });
+      setAssembly(closedAssembly);
       setInterfacePhase('folded', 0);
       return true;
     }
@@ -262,24 +369,40 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     diagnostics.phase = 'unfolding';
     let revealed = 0;
     panels.forEach((panel, index) => {
-      const localElapsed = elapsed - unfoldStart - index * animation.stagger;
+      const localElapsed = elapsed - unfoldStart - animation.delays[index];
       const raw = THREE.MathUtils.clamp(localElapsed / animation.unfoldDuration, 0, 1);
-      panel.group.rotation[panel.axis] = THREE.MathUtils.lerp(animation.closed[index], animation.finals[index], easeOutBack(raw));
-      if (raw > 0.22) revealed += 1;
+      const eased = animation.mode === 'lock' ? easeOutQuart(raw) : easeOutBack(raw);
+      panel.group.rotation[panel.axis] = THREE.MathUtils.lerp(animation.closed[index], animation.finals[index], eased);
+      if (raw > 0.18) revealed += 1;
     });
-    const assembly = easeInOutCubic(THREE.MathUtils.clamp((elapsed - unfoldStart) / (animation.unfoldDuration + animation.stagger), 0, 1));
-    system.rotation.x = THREE.MathUtils.lerp(-0.42, -0.04, assembly);
-    system.rotation.y = THREE.MathUtils.lerp(0.52, 0.08, assembly);
-    system.rotation.z = THREE.MathUtils.lerp(-0.1, -0.018, assembly);
-    system.scale.setScalar(THREE.MathUtils.lerp(0.82, 1, assembly));
-    system.position.z = THREE.MathUtils.lerp(-0.4, 0, assembly);
+
+    const assemblyRaw = THREE.MathUtils.clamp((elapsed - unfoldStart) / (animation.unfoldDuration + maxDelay * 0.35), 0, 1);
+    let assemblyProgress = easeInOutCubic(assemblyRaw);
+    if (animation.mode === 'lock') {
+      const lockBeat = THREE.MathUtils.clamp((elapsed - unfoldStart - animation.unfoldDuration * 0.22) / (animation.unfoldDuration * 0.78), 0, 1);
+      assemblyProgress = easeOutQuart(lockBeat);
+    }
+    interpolateAssembly(closedAssembly, animation.finalAssembly, assemblyProgress);
+
+    const proofPanel = panels.find(panel => panel.id === 'proof');
+    if (proofPanel && animation.mode === 'guarded') {
+      const proofIndex = panels.indexOf(proofPanel);
+      const proofRaw = THREE.MathUtils.clamp((elapsed - unfoldStart - animation.delays[proofIndex]) / animation.unfoldDuration, 0, 1);
+      proofPanel.mesh.position.z = proofPanel.baseMeshPosition.z + Math.sin(Math.PI * proofRaw) * 0.24;
+    }
+
+    if (animation.mode === 'broad-open') {
+      system.position.y += Math.sin(Math.PI * assemblyRaw) * 0.05;
+    }
+
     setInterfacePhase('unfolding', revealed);
 
     if (elapsed >= total) {
-      panels.forEach((panel, index) => { panel.group.rotation[panel.axis] = animation.finals[index]; });
-      system.rotation.set(-0.04, 0.08, -0.018);
-      system.scale.setScalar(1);
-      system.position.set(0, 0, 0);
+      panels.forEach((panel, index) => {
+        panel.group.rotation[panel.axis] = animation.finals[index];
+        panel.mesh.position.copy(panel.baseMeshPosition);
+      });
+      setAssembly(animation.finalAssembly);
       animation = null;
       diagnostics.phase = 'settled';
       diagnostics.settled = true;
@@ -307,7 +430,7 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
       const dispositionHeight = stage.querySelector('.three-fold-disposition')?.offsetHeight || 0;
       const verticalTop = halfHeight + 10;
       const verticalBottom = height - dispositionHeight - halfHeight - 14;
-      x = THREE.MathUtils.clamp(x, horizontalInset, width - horizontalInset);
+      x = THREE.MathUtils.clamp(x, horizontalInset, Math.max(horizontalInset, width - horizontalInset));
       y = THREE.MathUtils.clamp(y, verticalTop, Math.max(verticalTop, verticalBottom));
       label.style.setProperty('--fold-label-x', `${x}px`);
       label.style.setProperty('--fold-label-y', `${y}px`);
@@ -319,11 +442,18 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     diagnostics.renderer = 'three';
     diagnostics.meshCount = panels.length;
     diagnostics.state = state.result;
+    diagnostics.choreography = state.choreography || 'deliberate-handoff';
     diagnostics.rotations = panels.map(panel => panel.group.rotation[panel.axis]);
     diagnostics.targetRotations = panels.map(panel => panel.finalTarget);
     diagnostics.fallbackActive = false;
     diagnostics.reducedMotion = reducedMotionQuery.matches;
     diagnostics.frameCount += 1;
+
+    const absolute = Object.fromEntries(panels.map(panel => [panel.id, Math.abs(panel.group.rotation[panel.axis])]));
+    diagnostics.aggregateOpening = Object.values(absolute).reduce((sum, value) => sum + Math.max(0, CLOSED_ANGLE - value), 0);
+    const peerAverage = (absolute.outcome + absolute.reuse + absolute.proof) / 3;
+    diagnostics.gateAsymmetry = Math.abs(peerAverage - absolute.trust);
+    diagnostics.decisionGap = Math.abs(absolute.trust - absolute.proof);
   }
 
   function render() {
@@ -337,9 +467,10 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     const active = updateSequence(time);
     if (!animation && !reducedMotionQuery.matches) {
       const idle = (time - idleStart) / 1000;
-      system.rotation.y = 0.08 + Math.sin(idle * 0.48) * 0.055;
-      system.rotation.x = -0.04 + Math.cos(idle * 0.38) * 0.018;
-      system.position.y = Math.sin(idle * 0.56) * 0.035;
+      const finalAssembly = finalAssemblyFor(state);
+      system.rotation.y = finalAssembly.rotation[1] + Math.sin(idle * 0.48) * 0.042;
+      system.rotation.x = finalAssembly.rotation[0] + Math.cos(idle * 0.38) * 0.014;
+      system.position.y = finalAssembly.position[1] + Math.sin(idle * 0.56) * 0.026;
       diagnostics.continuousAnimation = true;
     }
     render();
@@ -360,7 +491,10 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
     render();
   }
 
-  window.addEventListener('foldscenariochange', event => startSequence(event.detail));
+  window.addEventListener('foldscenariochange', event => {
+    if (event.detail) startSequence(event.detail);
+  });
+
   reducedMotionQuery.addEventListener?.('change', () => {
     diagnostics.reducedMotion = reducedMotionQuery.matches;
     if (reducedMotionQuery.matches) {
@@ -375,7 +509,7 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
 
   stage.tabIndex = 0;
   stage.setAttribute('role', 'button');
-  stage.setAttribute('aria-label', `${stage.getAttribute('aria-label')}. Activate to replay the unfolding sequence.`);
+  stage.setAttribute('aria-label', `${stage.getAttribute('aria-label')}. Activate to replay the selected posture.`);
   stage.style.cursor = 'pointer';
   stage.addEventListener('click', event => {
     if (!event.target.closest('a, button')) startSequence(state, { intro: true });
@@ -389,7 +523,7 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
 
   const cue = document.createElement('div');
   cue.className = 'three-fold-replay-cue';
-  cue.textContent = 'Click to replay unfolding';
+  cue.textContent = 'Click to replay selected posture';
   Object.assign(cue.style, {
     position: 'absolute', top: '18px', right: '20px', zIndex: '7', padding: '8px 12px',
     borderRadius: '999px', border: '1px solid rgba(139,219,226,.24)', background: 'rgba(5,17,27,.72)',
@@ -401,9 +535,8 @@ export function initFoldEngine({ stage, canvas, fallback, diagnostics, reducedMo
   new ResizeObserver(resize).observe(stage);
   applyVisualEvidence(state);
   panels.forEach(panel => { panel.group.rotation[panel.axis] = closedFor(panel); });
-  system.rotation.set(-0.42, 0.52, -0.1);
-  system.scale.setScalar(0.82);
-  system.position.set(0, 0, -0.4);
+  const initialChoreography = CHOREOGRAPHIES[state.choreography] || CHOREOGRAPHIES['deliberate-handoff'];
+  setAssembly({ rotation: initialChoreography.closedRotation, scale: initialChoreography.closedScale, position: initialChoreography.closedPosition });
   setInterfacePhase('folded', 0);
   resize();
   diagnostics.renderer = 'three';

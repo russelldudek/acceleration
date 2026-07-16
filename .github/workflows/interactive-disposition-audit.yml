@@ -1,0 +1,52 @@
+name: Interactive disposition rail audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify interactive Fold source
+        run: |
+          test -s assets/vendor/three/three.module.min.js
+          test -s assets/vendor/three/LICENSE
+          test -s three-fold/postures.js
+          test -s scripts/audit-interactive-rail.mjs
+          grep -q "open-forum" three-fold/postures.js
+          grep -q "controlled-enclosure" three-fold/postures.js
+          grep -q "locked-capability" three-fold/postures.js
+      - name: Install Playwright
+        run: |
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start campaign server
+        run: |
+          python3 -m http.server 4173 >/tmp/acceleration-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/index.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/acceleration-http.log
+          exit 1
+      - name: Audit interactive posture rail
+        env:
+          AUDIT_URL: http://127.0.0.1:4173
+          AUDIT_OUTPUT: interactive-rail-evidence
+        run: node scripts/audit-interactive-rail.mjs
+      - name: Upload interactive evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: interactive-disposition-rail-evidence
+          path: interactive-rail-evidence
+          if-no-files-found: warn
