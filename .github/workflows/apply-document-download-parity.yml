@@ -32,15 +32,10 @@ jobs:
           index = index_path.read_text()
           new_cta = '<div class="hero-actions" style="justify-content:center"><a class="button light" href="resume.html">Resume</a><a class="button secondary" href="cover-letter.html">Cover letter</a><a class="button secondary" href="interview-brief.html">Interview thesis brief</a></div>'
           if new_cta not in index:
-              pattern = re.compile(
-                  r'<div class="hero-actions" style="justify-content:center">'
-                  r'<a class="button light" href="interview-brief\.html">Interview thesis brief</a>'
-                  r'<a class="button secondary" href="cover-letter\.html">Cover letter</a>'
-                  r'</div>'
-              )
-              index, count = pattern.subn(new_cta, index, count=1)
-              if count != 1:
-                  raise SystemExit('Final CTA source block not found')
+              section_start = index.index('<section class="section final-cta">')
+              actions_start = index.index('<div class="hero-actions" style="justify-content:center">', section_start)
+              actions_end = index.index('</div>', actions_start) + len('</div>')
+              index = index[:actions_start] + new_cta + index[actions_end:]
           index_path.write_text(index)
 
           documents = {
