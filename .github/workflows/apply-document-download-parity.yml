@@ -38,26 +38,36 @@ jobs:
               index = index[:actions_start] + new_cta + index[actions_end:]
           index_path.write_text(index)
 
-          documents = {
-              'resume.html': ('docs/russell-dudek-acceleration-partners-resume.pdf', 'Russell-Dudek-Acceleration-Partners-Resume.pdf'),
-              'cover-letter.html': ('docs/russell-dudek-acceleration-partners-cover-letter.pdf', 'Russell-Dudek-Acceleration-Partners-Cover-Letter.pdf'),
-              'interview-brief.html': ('docs/russell-dudek-acceleration-partners-interview-thesis-brief.pdf', 'Russell-Dudek-Acceleration-Partners-Interview-Thesis-Brief.pdf'),
-              '120-day-plan.html': ('docs/russell-dudek-acceleration-partners-120-day-entry-plan.pdf', 'Russell-Dudek-Acceleration-Partners-120-Day-Plan.pdf'),
-              'hard-objection.html': ('docs/russell-dudek-acceleration-partners-hard-objection-analysis.pdf', 'Russell-Dudek-Acceleration-Partners-Hard-Objection-Analysis.pdf'),
-              'service-to-product-fold-canvas.html': ('docs/service-to-product-fold-canvas.pdf', 'Russell-Dudek-Service-to-Product-Fold-Canvas.pdf'),
+          filenames = {
+              'docs/russell-dudek-acceleration-partners-resume.pdf': 'Russell-Dudek-Acceleration-Partners-Resume.pdf',
+              'docs/russell-dudek-acceleration-partners-cover-letter.pdf': 'Russell-Dudek-Acceleration-Partners-Cover-Letter.pdf',
+              'docs/russell-dudek-acceleration-partners-interview-thesis-brief.pdf': 'Russell-Dudek-Acceleration-Partners-Interview-Thesis-Brief.pdf',
+              'docs/russell-dudek-acceleration-partners-120-day-entry-plan.pdf': 'Russell-Dudek-Acceleration-Partners-120-Day-Plan.pdf',
+              'docs/russell-dudek-acceleration-partners-hard-objection-analysis.pdf': 'Russell-Dudek-Acceleration-Partners-Hard-Objection-Analysis.pdf',
+              'docs/service-to-product-fold-canvas.pdf': 'Russell-Dudek-Service-to-Product-Fold-Canvas.pdf',
           }
-          for route, (href, filename) in documents.items():
-              path = Path(route)
+          processed = []
+          for path in sorted(Path('.').glob('*.html')):
               html = path.read_text()
-              html = re.sub(r'<button[^>]*onclick="window\.print\(\)"[^>]*>Print</button>', '', html)
+              if 'class="doc-actions"' not in html:
+                  continue
+              html = re.sub(r'<button\b[^>]*>\s*Print\s*</button>', '', html)
+              match = re.search(r'<a class="download" href="([^"]+)"(?: download="[^"]+")?>Download PDF</a>', html)
+              if not match:
+                  raise SystemExit(f'Download link not found in {path}')
+              href = match.group(1)
+              filename = filenames.get(href)
+              if not filename:
+                  raise SystemExit(f'No approved filename mapping for {href} in {path}')
               replacement = f'<a class="download" href="{href}" download="{filename}">Download PDF</a>'
-              current = re.compile(r'<a class="download" href="[^"]+"(?: download="[^"]+")?>Download PDF</a>')
-              html, count = current.subn(replacement, html, count=1)
-              if count != 1:
-                  raise SystemExit(f'Download link not found in {route}')
-              if 'window.print' in html or '>Print</button>' in html:
-                  raise SystemExit(f'Print control remains in {route}')
+              html = html[:match.start()] + replacement + html[match.end():]
+              if 'window.print' in html or re.search(r'>\s*Print\s*</button>', html):
+                  raise SystemExit(f'Print control remains in {path}')
               path.write_text(html)
+              processed.append(path.name)
+          if len(processed) != 6:
+              raise SystemExit(f'Expected six document pages, processed {len(processed)}: {processed}')
+          print('Patched document pages:', ', '.join(processed))
           PY
       - name: Start campaign server
         run: |
