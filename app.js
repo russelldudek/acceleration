@@ -32,12 +32,22 @@ let POSTURE_IDS = [];
 let resolveFoldState;
 let dispositionButtons = [];
 
+function waitForStylesheet(link) {
+  if (link.sheet) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    link.addEventListener('load', resolve, { once: true });
+    link.addEventListener('error', () => reject(new Error(`Failed to load ${link.href}`)), { once: true });
+  });
+}
+
 function ensureInteractiveStyles() {
-  if (document.querySelector('link[href="interactive-disposition.css"]')) return;
+  const existing = document.querySelector('link[href="interactive-disposition.css"]');
+  if (existing) return waitForStylesheet(existing);
   const link = document.createElement('link');
   link.rel = 'stylesheet';
   link.href = 'interactive-disposition.css';
   document.head.appendChild(link);
+  return waitForStylesheet(link);
 }
 
 function hydrateDispositionRail() {
@@ -177,7 +187,7 @@ function bindControls() {
 }
 
 async function initialize() {
-  ensureInteractiveStyles();
+  await ensureInteractiveStyles();
   dispositionButtons = hydrateDispositionRail();
   const postureModule = await import('./three-fold/postures.js');
   POSTURE_IDS = postureModule.POSTURE_IDS;
