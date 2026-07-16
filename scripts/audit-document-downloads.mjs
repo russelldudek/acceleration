@@ -14,7 +14,7 @@ const documents = [
   ['cover-letter.html', 'Russell-Dudek-Acceleration-Partners-Cover-Letter.pdf', 1],
   ['interview-brief.html', 'Russell-Dudek-Acceleration-Partners-Interview-Thesis-Brief.pdf', 3],
   ['120-day-plan.html', 'Russell-Dudek-Acceleration-Partners-120-Day-Plan.pdf', 3],
-  ['hard-objection.html', 'Russell-Dudek-Acceleration-Partners-Hard-Objection-Analysis.pdf', 2],
+  ['hard-objection-analysis.html', 'Russell-Dudek-Acceleration-Partners-Hard-Objection-Analysis.pdf', 2],
   ['service-to-product-fold-canvas.html', 'Russell-Dudek-Service-to-Product-Fold-Canvas.pdf', 1],
 ];
 
