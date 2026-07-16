@@ -6,13 +6,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build:
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: feature/document-download-parity
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -114,6 +117,13 @@ jobs:
           AUDIT_URL: http://127.0.0.1:4173
           AUDIT_OUTPUT: document-parity-bundle/audit-evidence
         run: node scripts/audit-document-downloads.mjs
+      - name: Commit audited source and PDF
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection-analysis.html service-to-product-fold-canvas.html docs/russell-dudek-acceleration-partners-resume.pdf
+          git commit -m "Align document downloads and resume PDF"
+          git push origin HEAD:feature/document-download-parity
       - name: Package corrected source and PDF
         if: always()
         run: |
