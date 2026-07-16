@@ -48,11 +48,13 @@ function hydrateDispositionRail() {
 
   [...rail.querySelectorAll('.disposition-step')].forEach(node => {
     if (node instanceof HTMLButtonElement) return;
+    const active = node.getAttribute('aria-current') === 'true';
     const button = document.createElement('button');
     button.type = 'button';
     button.className = node.className;
     button.dataset.disposition = node.dataset.disposition;
-    button.setAttribute('aria-pressed', String(node.getAttribute('aria-current') === 'true'));
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-current', String(active));
     button.innerHTML = node.innerHTML;
     const copy = button.querySelector('div');
     if (copy) {
@@ -93,7 +95,11 @@ function renderResolvedState({ announce = true } = {}) {
   const workflowName = document.querySelector('.three-fold-workflow');
   if (workflowName) workflowName.textContent = workflowState.label;
 
-  dispositionButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.disposition === resolved.result)));
+  dispositionButtons.forEach(button => {
+    const active = button.dataset.disposition === resolved.result;
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-current', String(active));
+  });
 
   const result = document.querySelector('.decision-result');
   if (result) result.textContent = resolved.decision;
