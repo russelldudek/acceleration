@@ -1,0 +1,118 @@
+/* Interactive Service-to-Product Fold disposition controls */
+.three-fold-disposition .disposition-step{
+  appearance:none;
+  width:100%;
+  min-height:54px;
+  border:1px solid transparent;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+  background:transparent;
+  -webkit-tap-highlight-color:transparent;
+  transition:background .22s ease,color .22s ease,border-color .22s ease,box-shadow .22s ease,transform .22s ease;
+}
+
+.three-fold-disposition .disposition-step > span,
+.three-fold-disposition .disposition-step > div{
+  min-width:0;
+}
+
+.three-fold-disposition .disposition-step:hover:not([aria-pressed="true"]){
+  color:#dff4f7;
+  background:rgba(139,219,226,.055);
+  border-color:rgba(139,219,226,.14);
+}
+
+.three-fold-disposition .disposition-step:focus-visible{
+  outline:3px solid #f8fbfc;
+  outline-offset:3px;
+  box-shadow:0 0 0 6px rgba(84,187,203,.34);
+}
+
+.three-fold-disposition .disposition-step[aria-pressed="true"]{
+  color:#06141e;
+  background:linear-gradient(135deg,#9fe6ef,#67bfd1);
+  border-color:rgba(255,255,255,.34);
+  box-shadow:0 10px 26px rgba(42,154,179,.24);
+  transform:translateY(-1px);
+}
+
+.three-fold-disposition .disposition-step[aria-pressed="true"] small{
+  opacity:.82;
+}
+
+.three-fold-stage[data-state="human"] .three-fold-core-copy p::after{
+  content:" Human authority remains explicit.";
+}
+
+.three-fold-stage[data-state="assist"] .three-fold-core-copy p::after{
+  content:" A visible decision gap stays open.";
+}
+
+.three-fold-stage[data-state="agentize"] .three-fold-core-copy p::after{
+  content:" One review gate remains deliberately open.";
+}
+
+.three-fold-stage[data-state="productize"] .three-fold-core-copy p::after{
+  content:" The planes resolve as one reusable capability.";
+}
+
+.three-fold-stage[data-fallback="true"][data-state="human"] .three-fold-fallback__plane{
+  transform:scale(.88);
+  opacity:.78;
+}
+
+.three-fold-stage[data-fallback="true"][data-state="assist"] .three-fold-fallback__plane{
+  transform:scale(.96);
+}
+
+.three-fold-stage[data-fallback="true"][data-state="agentize"] .three-fold-fallback__plane{
+  transform:scale(1.025);
+}
+
+.three-fold-stage[data-fallback="true"][data-state="productize"] .three-fold-fallback__plane{
+  transform:scale(1.08);
+}
+
+.three-fold-fallback__plane{
+  transition:transform .42s cubic-bezier(.2,.8,.2,1),opacity .3s ease;
+}
+
+@media (max-width:520px){
+  .three-fold-disposition{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:4px;
+    width:min(94%,390px);
+  }
+
+  .three-fold-disposition .disposition-step{
+    min-height:58px;
+    padding:.58rem .52rem;
+  }
+
+  .three-fold-disposition .disposition-step strong{
+    font-size:.72rem;
+  }
+
+  .three-fold-disposition .disposition-step small{
+    font-size:.54rem;
+  }
+}
+
+@media (max-width:350px){
+  .three-fold-disposition{
+    grid-template-columns:1fr;
+    width:92%;
+  }
+
+  .three-fold-disposition .disposition-step{
+    min-height:46px;
+  }
+}
+
+@media (prefers-reduced-motion:reduce){
+  .three-fold-disposition .disposition-step,
+  .three-fold-fallback__plane{
+    transition:none;
+  }
+}
