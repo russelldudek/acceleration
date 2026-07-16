@@ -1,0 +1,52 @@
+name: Document download and resume parity audit
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Start campaign server
+        run: |
+          python3 -m http.server 4173 >/tmp/acceleration-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/index.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/acceleration-http.log
+          exit 1
+      - name: Audit direct downloads and PDF contracts
+        env:
+          AUDIT_URL: http://127.0.0.1:4173
+          AUDIT_OUTPUT: document-download-evidence
+        run: node scripts/audit-document-downloads.mjs
+      - name: Render resume PDF pages
+        if: always()
+        run: |
+          mkdir -p document-download-evidence/resume-pdf-render
+          if test -s docs/russell-dudek-acceleration-partners-resume.pdf; then
+            pdftoppm -png -r 160 docs/russell-dudek-acceleration-partners-resume.pdf document-download-evidence/resume-pdf-render/page
+          fi
+      - name: Upload document evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: document-download-evidence
+          path: document-download-evidence
+          if-no-files-found: warn
