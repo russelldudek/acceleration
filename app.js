@@ -1,3 +1,5 @@
+import { POSTURE_IDS, resolveFoldState } from './three-fold/postures.js';
+
 const scenarios = {
   reporting: {
     label: 'Weekly client reporting',
@@ -79,6 +81,9 @@ const strengthLabels = {
   strong: 'Strong'
 };
 
+let workflowKey = 'reporting';
+let postureOverride = null;
+
 function updateEngineEvidence(id, state, text) {
   const face = document.querySelector(`[data-engine-evidence="${id}"]`);
   if (!face) return;
@@ -91,68 +96,115 @@ function updateEngineEvidence(id, state, text) {
   if (strengthLabel) strengthLabel.textContent = strengthLabels[state] || state;
 }
 
-function applyScenario(key) {
+function buildWorkflowState(key) {
   const data = scenarios[key];
-  if (!data) return;
+  if (!data) return null;
+  return {
+    key,
+    label: data.label,
+    result: data.result,
+    decision: data.decision,
+    note: data.note,
+    heroEvidence: data.heroEvidence,
+    evidence: data.evidence
+  };
+}
+
+function renderResolvedState({ announce = true } = {}) {
+  const workflowState = buildWorkflowState(workflowKey);
+  if (!workflowState) return;
+  const resolved = resolveFoldState(workflowState, postureOverride);
 
   document.querySelectorAll('.scenario').forEach(button => {
-    button.setAttribute('aria-selected', String(button.dataset.scenario === key));
+    button.setAttribute('aria-selected', String(button.dataset.scenario === workflowKey));
   });
 
-  const engine = document.querySelector('.three-fold-stage');
-  if (engine) engine.dataset.state = data.result;
+  const stage = document.querySelector('.three-fold-stage');
+  if (stage) stage.dataset.state = resolved.result;
 
   const workflowName = document.querySelector('.three-fold-workflow');
-  if (workflowName) workflowName.textContent = data.label;
+  if (workflowName) workflowName.textContent = workflowState.label;
 
-  document.querySelectorAll('.disposition-step').forEach(step => {
-    step.setAttribute('aria-current', String(step.dataset.disposition === data.result));
+  document.querySelectorAll('.disposition-step').forEach(button => {
+    const active = button.dataset.disposition === resolved.result;
+    button.setAttribute('aria-pressed', String(active));
+    button.removeAttribute('aria-current');
   });
 
   const result = document.querySelector('.decision-result');
-  if (result) result.textContent = data.decision;
+  if (result) result.textContent = resolved.decision;
 
   const note = document.querySelector('.decision-note');
-  if (note) note.textContent = data.note;
+  if (note) note.textContent = resolved.note;
 
   const title = document.querySelector('.scenario-title');
-  if (title) title.textContent = data.label;
+  if (title) title.textContent = workflowState.label;
 
-  Object.entries(data.evidence).forEach(([id, [state, text]]) => {
-    updateEngineEvidence(id, state, data.heroEvidence[id] || text);
+  Object.entries(resolved.evidence).forEach(([id, [strength, text]]) => {
+    updateEngineEvidence(id, strength, resolved.heroEvidence[id] || text);
 
     const detail = document.querySelector(`[data-evidence="${id}"]`);
     if (!detail) return;
-    detail.dataset.state = state;
+    detail.dataset.state = strength;
     const detailText = detail.querySelector('strong');
     if (detailText) detailText.textContent = text;
   });
 
   const live = document.querySelector('#lab-live');
-  if (live) live.textContent = `${data.label}: disposition ${data.decision}. ${data.note}`;
+  if (live && announce) {
+    live.textContent = `${workflowState.label}: comparing ${resolved.decision}. ${resolved.note}`;
+  }
 
-  const foldState = {
-    key,
-    label: data.label,
-    result: data.result,
-    decision: data.decision,
-    heroEvidence: data.heroEvidence,
-    evidence: data.evidence
-  };
-  window.__foldScenarioState = foldState;
-  window.dispatchEvent(new CustomEvent('foldscenariochange', { detail: foldState }));
+  window.__foldScenarioState = resolved;
+  window.dispatchEvent(new CustomEvent('foldscenariochange', { detail: resolved }));
+}
+
+function selectWorkflow(key) {
+  if (!scenarios[key]) return;
+  workflowKey = key;
+  postureOverride = null;
+  renderResolvedState();
+}
+
+function selectPosture(posture) {
+  if (!POSTURE_IDS.includes(posture)) return;
+  postureOverride = posture;
+  renderResolvedState();
 }
 
 document.querySelectorAll('.scenario').forEach(button => {
-  button.addEventListener('click', () => applyScenario(button.dataset.scenario));
+  button.addEventListener('click', () => selectWorkflow(button.dataset.scenario));
 });
 
-document.querySelector('.scenario-reset')?.addEventListener('click', () => applyScenario('reporting'));
+document.querySelector('.scenario-reset')?.addEventListener('click', () => {
+  workflowKey = 'reporting';
+  postureOverride = null;
+  renderResolvedState();
+});
+
+const dispositionButtons = [...document.querySelectorAll('button.disposition-step')];
+dispositionButtons.forEach(button => {
+  button.addEventListener('click', () => selectPosture(button.dataset.disposition));
+});
 
 document.addEventListener('keydown', event => {
   const active = document.activeElement;
-  if (!active?.classList.contains('scenario')) return;
 
+  if (active?.classList.contains('disposition-step')) {
+    const currentIndex = dispositionButtons.indexOf(active);
+    let nextIndex = null;
+    if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % dispositionButtons.length;
+    if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + dispositionButtons.length) % dispositionButtons.length;
+    if (event.key === 'Home') nextIndex = 0;
+    if (event.key === 'End') nextIndex = dispositionButtons.length - 1;
+    if (nextIndex !== null) {
+      event.preventDefault();
+      dispositionButtons[nextIndex].focus();
+      return;
+    }
+  }
+
+  if (!active?.classList.contains('scenario')) return;
   const buttons = [...document.querySelectorAll('.scenario')];
   const currentIndex = buttons.indexOf(active);
 
@@ -167,4 +219,4 @@ document.addEventListener('keydown', event => {
   }
 });
 
-applyScenario('reporting');
+renderResolvedState({ announce: false });
