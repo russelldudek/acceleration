@@ -30,11 +30,18 @@ jobs:
 
           index_path = Path('index.html')
           index = index_path.read_text()
-          old_cta = '<div class="hero-actions" style="justify-content:center"><a class="button light" href="interview-brief.html">Interview thesis brief</a><a class="button secondary" href="cover-letter.html">Cover letter</a></div>'
           new_cta = '<div class="hero-actions" style="justify-content:center"><a class="button light" href="resume.html">Resume</a><a class="button secondary" href="cover-letter.html">Cover letter</a><a class="button secondary" href="interview-brief.html">Interview thesis brief</a></div>'
-          if old_cta not in index:
-              raise SystemExit('Final CTA source block not found')
-          index_path.write_text(index.replace(old_cta, new_cta, 1))
+          if new_cta not in index:
+              pattern = re.compile(
+                  r'<div class="hero-actions" style="justify-content:center">'
+                  r'<a class="button light" href="interview-brief\.html">Interview thesis brief</a>'
+                  r'<a class="button secondary" href="cover-letter\.html">Cover letter</a>'
+                  r'</div>'
+              )
+              index, count = pattern.subn(new_cta, index, count=1)
+              if count != 1:
+                  raise SystemExit('Final CTA source block not found')
+          index_path.write_text(index)
 
           documents = {
               'resume.html': ('docs/russell-dudek-acceleration-partners-resume.pdf', 'Russell-Dudek-Acceleration-Partners-Resume.pdf'),
@@ -47,10 +54,10 @@ jobs:
           for route, (href, filename) in documents.items():
               path = Path(route)
               html = path.read_text()
-              html = html.replace('<button onclick="window.print()">Print</button>', '')
-              pattern = re.compile(r'<a class="download" href="' + re.escape(href) + r'"(?: download="[^"]+")?>Download PDF</a>')
+              html = re.sub(r'<button[^>]*onclick="window\.print\(\)"[^>]*>Print</button>', '', html)
               replacement = f'<a class="download" href="{href}" download="{filename}">Download PDF</a>'
-              html, count = pattern.subn(replacement, html, count=1)
+              current = re.compile(r'<a class="download" href="[^"]+"(?: download="[^"]+")?>Download PDF</a>')
+              html, count = current.subn(replacement, html, count=1)
               if count != 1:
                   raise SystemExit(f'Download link not found in {route}')
               if 'window.print' in html or '>Print</button>' in html:
