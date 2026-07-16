@@ -1,22 +1,18 @@
-name: Apply document download parity
+name: Build document download parity bundle
 
 on:
-  push:
-    branches: [feature/document-download-parity]
-    paths:
-      - '.github/document-download-parity-trigger.txt'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  apply:
-    if: github.actor != 'github-actions[bot]'
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: feature/document-download-parity
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -84,14 +80,23 @@ jobs:
           grep -q 'Applied AI Product Operating Model' /tmp/resume.txt
           grep -q 'Additional Experience' /tmp/resume.txt
           grep -q 'Candidate Thesis' /tmp/resume.txt
-          mkdir -p /tmp/resume-render
-          pdftoppm -png -r 160 docs/russell-dudek-acceleration-partners-resume.pdf /tmp/resume-render/page
-          test -s /tmp/resume-render/page-1.png
-          test -s /tmp/resume-render/page-2.png
-      - name: Commit implementation
+          mkdir -p document-parity-bundle/resume-render
+          pdftoppm -png -r 160 docs/russell-dudek-acceleration-partners-resume.pdf document-parity-bundle/resume-render/page
+          test -s document-parity-bundle/resume-render/page-1.png
+          test -s document-parity-bundle/resume-render/page-2.png
+      - name: Audit corrected working tree
+        env:
+          AUDIT_URL: http://127.0.0.1:4173
+          AUDIT_OUTPUT: document-parity-bundle/audit-evidence
+        run: node scripts/audit-document-downloads.mjs
+      - name: Package corrected source and PDF
         run: |
-          git config user.name github-actions[bot]
-          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
-          git add index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection.html service-to-product-fold-canvas.html docs/russell-dudek-acceleration-partners-resume.pdf
-          git commit -m "Align document downloads and resume PDF"
-          git push origin HEAD:feature/document-download-parity
+          mkdir -p document-parity-bundle/source/docs
+          cp index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection.html service-to-product-fold-canvas.html document-parity-bundle/source/
+          cp docs/russell-dudek-acceleration-partners-resume.pdf document-parity-bundle/source/docs/
+      - name: Upload audited bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: audited-document-parity-bundle
+          path: document-parity-bundle
+          if-no-files-found: error
