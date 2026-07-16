@@ -1,0 +1,97 @@
+name: Apply document download parity
+
+on:
+  push:
+    branches: [feature/document-download-parity]
+    paths:
+      - '.github/document-download-parity-trigger.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feature/document-download-parity
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install browser and PDF tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          npm install --no-save playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Patch CTA and document actions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          index_path = Path('index.html')
+          index = index_path.read_text()
+          old_cta = '<div class="hero-actions" style="justify-content:center"><a class="button light" href="interview-brief.html">Interview thesis brief</a><a class="button secondary" href="cover-letter.html">Cover letter</a></div>'
+          new_cta = '<div class="hero-actions" style="justify-content:center"><a class="button light" href="resume.html">Resume</a><a class="button secondary" href="cover-letter.html">Cover letter</a><a class="button secondary" href="interview-brief.html">Interview thesis brief</a></div>'
+          if old_cta not in index:
+              raise SystemExit('Final CTA source block not found')
+          index_path.write_text(index.replace(old_cta, new_cta, 1))
+
+          documents = {
+              'resume.html': ('docs/russell-dudek-acceleration-partners-resume.pdf', 'Russell-Dudek-Acceleration-Partners-Resume.pdf'),
+              'cover-letter.html': ('docs/russell-dudek-acceleration-partners-cover-letter.pdf', 'Russell-Dudek-Acceleration-Partners-Cover-Letter.pdf'),
+              'interview-brief.html': ('docs/russell-dudek-acceleration-partners-interview-thesis-brief.pdf', 'Russell-Dudek-Acceleration-Partners-Interview-Thesis-Brief.pdf'),
+              '120-day-plan.html': ('docs/russell-dudek-acceleration-partners-120-day-entry-plan.pdf', 'Russell-Dudek-Acceleration-Partners-120-Day-Plan.pdf'),
+              'hard-objection.html': ('docs/russell-dudek-acceleration-partners-hard-objection-analysis.pdf', 'Russell-Dudek-Acceleration-Partners-Hard-Objection-Analysis.pdf'),
+              'service-to-product-fold-canvas.html': ('docs/service-to-product-fold-canvas.pdf', 'Russell-Dudek-Service-to-Product-Fold-Canvas.pdf'),
+          }
+          for route, (href, filename) in documents.items():
+              path = Path(route)
+              html = path.read_text()
+              html = html.replace('<button onclick="window.print()">Print</button>', '')
+              pattern = re.compile(r'<a class="download" href="' + re.escape(href) + r'"(?: download="[^"]+")?>Download PDF</a>')
+              replacement = f'<a class="download" href="{href}" download="{filename}">Download PDF</a>'
+              html, count = pattern.subn(replacement, html, count=1)
+              if count != 1:
+                  raise SystemExit(f'Download link not found in {route}')
+              if 'window.print' in html or '>Print</button>' in html:
+                  raise SystemExit(f'Print control remains in {route}')
+              path.write_text(html)
+          PY
+      - name: Start campaign server
+        run: |
+          python3 -m http.server 4173 >/tmp/acceleration-http.log 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:4173/resume.html >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/acceleration-http.log
+          exit 1
+      - name: Generate HTML-derived resume PDF
+        env:
+          RESUME_BASE_URL: http://127.0.0.1:4173
+          RESUME_PDF_OUTPUT: docs/russell-dudek-acceleration-partners-resume.pdf
+        run: node scripts/generate-resume-pdf.mjs
+      - name: Validate generated resume
+        run: |
+          test "$(pdfinfo docs/russell-dudek-acceleration-partners-resume.pdf | awk '/^Pages:/ {print $2}')" = "2"
+          pdfinfo docs/russell-dudek-acceleration-partners-resume.pdf | grep -Eq 'Page size:.*612 x 792 pts|Page size:.*letter'
+          pdftotext docs/russell-dudek-acceleration-partners-resume.pdf /tmp/resume.txt
+          grep -q 'Role-Aligned Experience' /tmp/resume.txt
+          grep -q 'Applied AI Product Operating Model' /tmp/resume.txt
+          grep -q 'Additional Experience' /tmp/resume.txt
+          grep -q 'Candidate Thesis' /tmp/resume.txt
+          mkdir -p /tmp/resume-render
+          pdftoppm -png -r 160 docs/russell-dudek-acceleration-partners-resume.pdf /tmp/resume-render/page
+          test -s /tmp/resume-render/page-1.png
+          test -s /tmp/resume-render/page-2.png
+      - name: Commit implementation
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection.html service-to-product-fold-canvas.html docs/russell-dudek-acceleration-partners-resume.pdf
+          git commit -m "Align document downloads and resume PDF"
+          git push origin HEAD:feature/document-download-parity
