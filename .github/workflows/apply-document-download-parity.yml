@@ -94,10 +94,11 @@ jobs:
           import re
           info = Path('document-parity-bundle/validation/resume-pdfinfo.txt').read_text()
           text = Path('document-parity-bundle/validation/resume-text.txt').read_text()
+          normalized = ' '.join(text.lower().split())
           pages = int(re.search(r'^Pages:\s+(\d+)', info, re.M).group(1))
           size = re.search(r'^Page size:\s+(.+)', info, re.M).group(1)
-          required = ['Role-Aligned Experience', 'Applied AI Product Operating Model', 'Additional Experience', 'Candidate Thesis']
-          missing = [term for term in required if term not in text]
+          required = ['role-aligned experience', 'applied ai product operating model', 'additional experience', 'candidate thesis']
+          missing = [term for term in required if term not in normalized]
           print({'pages': pages, 'size': size, 'missing_terms': missing})
           errors = []
           if pages != 2: errors.append(f'Expected 2 pages, found {pages}')
@@ -117,7 +118,7 @@ jobs:
         if: always()
         run: |
           mkdir -p document-parity-bundle/source/docs
-          cp index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection.html service-to-product-fold-canvas.html document-parity-bundle/source/ || true
+          cp index.html resume.html cover-letter.html interview-brief.html 120-day-plan.html hard-objection-analysis.html service-to-product-fold-canvas.html document-parity-bundle/source/ || true
           cp docs/russell-dudek-acceleration-partners-resume.pdf document-parity-bundle/source/docs/ || true
       - name: Upload audited bundle
         if: always()
